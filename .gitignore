@@ -1,0 +1,5 @@
+## Local analysis artifacts (do not commit)
+target.apk
+jadx_out/
+tools/
+
