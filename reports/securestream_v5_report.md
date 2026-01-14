@@ -5,8 +5,9 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/b3v0wj.apk
-- SHA-256: `596494c2baaf5a03576991f8e0b800b11294d9687607efabe6848bf7bad99a1f`
+- Catbox: https://files.catbox.moe/e3u5rl.apk
+- SHA-256: `800a3fffce9962e9bd18c04975fe4946b78947ea8c46ce4532630ddd3898e825`
+- Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
 
