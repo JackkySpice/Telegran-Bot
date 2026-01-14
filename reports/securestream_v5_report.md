@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/obfazg.apk
-- SHA-256: `975f40fea1047cd3701bea99e59be0cb77b57c5d495b7db9b6d5ad1b4f0e6196`
+- Catbox: https://files.catbox.moe/g83chd.apk
+- SHA-256: `b6eddf14a546014481f6794a9f908d0246521cc8144e8f87a1134f69b8932683`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -53,7 +53,7 @@ Activation key validation relies on a client-side MethodChannel result that can 
 
 ---
 
-## Finding 2: Native integrity/anti-tamper bypass via skipped init calls
+## Finding 2: Native integrity/anti-tamper bypass via trap neutralization
 Severity: High  
 Confidence: Medium  
 Affected Asset: `SecureStream-v5.0-Prod.apk`  
@@ -61,23 +61,20 @@ Preconditions: None
 
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
-2. Patch `androidx/appcompat/view/menu/fv0.smali` to skip native init calls `Native.i(...)` and `b20.c(...)`.
+2. Patch `lib/arm64-v8a/libengine.so` at offsets `0x74c2d4` and `0x74c2d8` to replace the trap with `RET`.
 3. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
 4. Rebuild and sign the APK.
 5. Install and run the modified APK.
 
 ### Impact
-Native anti-tamper init hooks are skipped from the Java layer, preventing integrity checks that trigger an illegal-instruction crash while keeping the engine library loaded.
+Native trap instructions are neutralized at the crash site, preventing the illegal-instruction crash while allowing the engine library to load.
 
 ### Evidence (sanitized)
-[EV2A] Native init calls skipped during app init:
+[EV2A] Trap instructions neutralized at crash site:
 ```
-1066:1075:work/securestream_apk/smali/androidx/appcompat/view/menu/fv0.smali
-    :cond_5
-    nop
-
-    new-instance v5, Landroidx/appcompat/view/menu/fv0$b;
-    invoke-direct {v5}, Landroidx/appcompat/view/menu/fv0$b;-><init>()V
+lib/arm64-v8a/libengine.so @ 0x74c2d4/0x74c2d8:
+c0 03 5f d6 c0 03 5f d6
+(ret; ret)
 ```
 
 [EV2B] `Native.ic(Context)` invocations removed in integrity init path:
