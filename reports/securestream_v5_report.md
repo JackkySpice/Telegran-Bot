@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/e3u5rl.apk
-- SHA-256: `800a3fffce9962e9bd18c04975fe4946b78947ea8c46ce4532630ddd3898e825`
+- Catbox: https://files.catbox.moe/0w09ml.apk
+- SHA-256: `6b5395a5cb51d1b11d02cf1cd0e3080b35fe221386989866a1ad885008e2f4b2`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -53,7 +53,7 @@ Activation key validation relies on a client-side MethodChannel result that can 
 
 ---
 
-## Finding 2: Native integrity check bypass via removed `Native.ic` calls
+## Finding 2: Native integrity/anti-tamper bypass via engine load removal + stubs
 Severity: High  
 Confidence: Medium  
 Affected Asset: `SecureStream-v5.0-Prod.apk`  
@@ -61,15 +61,53 @@ Preconditions: None
 
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
-2. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
-3. Rebuild and sign the APK.
-4. Install and run the modified APK.
+2. Patch `com/snake/App.smali` to remove `System.loadLibrary("engine")`.
+3. Patch `com/snake/helper/Native.smali` to implement no-op Java stubs for native methods.
+4. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
+5. Rebuild and sign the APK.
+6. Install and run the modified APK.
 
 ### Impact
-The integrity/anti-tamper routine tied to `Native.ic(Context)` is never executed, allowing modified packages to run without triggering native integrity enforcement.
+The native anti-tamper library never loads and its native checks are stubbed, preventing the deliberate crash path and allowing modified packages to run without triggering native integrity enforcement.
 
 ### Evidence (sanitized)
-[EV2] `Native.ic(Context)` invocations removed in integrity init path:
+[EV2A] Engine library load removed from Application static init:
+```
+6:11:work/securestream_apk/smali/com/snake/App.smali
+.method static constructor <clinit>()V
+    .locals 0
+
+    return-void
+.end method
+```
+
+[EV2B] Native methods stubbed to no-op/empty values:
+```
+6:45:work/securestream_apk/smali/com/snake/helper/Native.smali
+.method public static ac(Ljava/lang/Object;Ljava/lang/Object;)V
+    .annotation build Landroidx/annotation/Keep;
+    .end annotation
+
+    .locals 0
+
+    return-void
+.end method
+
+.method public static djp(I)[B
+    .annotation build Landroidx/annotation/Keep;
+    .end annotation
+
+    .locals 1
+
+    const/4 v0, 0x0
+
+    new-array v0, v0, [B
+
+    return-object v0
+.end method
+```
+
+[EV2C] `Native.ic(Context)` invocations removed in integrity init path:
 ```
 453:482:work/securestream_apk/smali/androidx/appcompat/view/menu/uu0.smali
     sget-object p1, Landroidx/appcompat/view/menu/uu0$a;->o:Landroidx/appcompat/view/menu/uu0$a;
@@ -82,7 +120,7 @@ The integrity/anti-tamper routine tied to `Native.ic(Context)` is never executed
 ```
 
 ### Root Cause
-Integrity enforcement is a single client-side native call with no secondary validation. It can be bypassed by removing the call site in smali without affecting application flow.
+Integrity enforcement relies on a client-side native library and call sites only. Without server-side attestation, the checks can be bypassed by removing the library load and stubbing native entry points.
 
 ### Recommended Fix
 - Enforce integrity via server-side checks and refuse to issue activation tokens to tampered clients.
