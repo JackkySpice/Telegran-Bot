@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/fe9bof.apk
-- SHA-256: `0e008e60448192b90ef87e71aecdf8a2b7a787b290fd4073febeefc7100dcb68`
+- Catbox: https://files.catbox.moe/w93lgz.apk
+- SHA-256: `14141d3d619618f6511b326bf8eb94a9e7681d3645221ecfd990a008f78d0a70`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -62,18 +62,25 @@ Preconditions: None
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
 2. Restore original `lib/arm64-v8a/libengine.so` (keep native registration intact).
-3. Patch `androidx/appcompat/view/menu/fv0.smali` to skip native init calls.
-4. Patch `androidx/appcompat/view/menu/a8.smali` to skip `Native.ac(...)` in `callActivityOnResume`.
-5. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
-6. Patch `com/Entry.smali` to return empty byte array instead of calling `Native.djp(...)`.
-7. Rebuild and sign the APK.
-8. Install and run the modified APK.
+3. Patch `lib/arm64-v8a/libengine.so` to replace two `UDF` zero instructions with AArch64 `NOP` (offsets `0x7cfcb8` and `0x7cfcbc`).
+4. Patch `androidx/appcompat/view/menu/fv0.smali` to skip native init calls.
+5. Patch `androidx/appcompat/view/menu/a8.smali` to skip `Native.ac(...)` in `callActivityOnResume`.
+6. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
+7. Patch `com/Entry.smali` to return empty byte array instead of calling `Native.djp(...)`.
+8. Rebuild and sign the APK.
+9. Install and run the modified APK.
 
 ### Impact
 Native trap instructions are neutralized at the crash site, preventing the illegal-instruction crash while allowing the engine library to load.
 
 ### Evidence (sanitized)
-[EV2A] Native init call sites skipped in Java layer:
+[EV2A] UDF instructions replaced with NOP:
+```
+lib/arm64-v8a/libengine.so @ 0x7cfcb8/0x7cfcbc:
+1f 20 03 d5 1f 20 03 d5
+```
+
+[EV2B] Native init call sites skipped in Java layer:
 ```
 1069:1075:work/securestream_apk/smali/androidx/appcompat/view/menu/fv0.smali
     :cond_5
@@ -83,7 +90,7 @@ Native trap instructions are neutralized at the crash site, preventing the illeg
     invoke-direct {v5}, Landroidx/appcompat/view/menu/fv0$b;-><init>()V
 ```
 
-[EV2B] `Native.ac(...)` skipped during activity resume:
+[EV2C] `Native.ac(...)` skipped during activity resume:
 ```
 324:332:work/securestream_apk/smali/androidx/appcompat/view/menu/a8.smali
     invoke-virtual {v1, v2, v3}, Ljava/lang/Class;->getDeclaredMethod(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
@@ -95,13 +102,13 @@ Native trap instructions are neutralized at the crash site, preventing the illeg
     nop
 ```
 
-[EV2C] `Native.ic(Context)` invocations removed in integrity init path:
+[EV2D] `Native.ic(Context)` invocations removed in integrity init path:
 ```
 453:482:work/securestream_apk/smali/androidx/appcompat/view/menu/uu0.smali
     sget-object p1, Landroidx/appcompat/view/menu/uu0$a;->o:Landroidx/appcompat/view/menu/uu0$a;
 ```
 
-[EV2D] `Native.djp(...)` replaced with empty byte array:
+[EV2E] `Native.djp(...)` replaced with empty byte array:
 ```
 106:120:work/securestream_apk/smali/com/Entry.smali
     if-eqz v0, :cond_0
