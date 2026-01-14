@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/w93lgz.apk
-- SHA-256: `14141d3d619618f6511b326bf8eb94a9e7681d3645221ecfd990a008f78d0a70`
+- Catbox: https://files.catbox.moe/dgze6r.apk
+- SHA-256: `ade8f23507a0503beab1b961ba960feb2c4e92175c1fe98f1aecd6c347f8f4c6`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -67,8 +67,9 @@ Preconditions: None
 5. Patch `androidx/appcompat/view/menu/a8.smali` to skip `Native.ac(...)` in `callActivityOnResume`.
 6. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
 7. Patch `com/Entry.smali` to return empty byte array instead of calling `Native.djp(...)`.
-8. Rebuild and sign the APK.
-9. Install and run the modified APK.
+8. Patch `lib/arm64-v8a/libengine.so` at offsets `0x4d32d8` and `0x4d52d8` with `MOV X0,#0; RET`.
+9. Rebuild and sign the APK.
+10. Install and run the modified APK.
 
 ### Impact
 Native trap instructions are neutralized at the crash site, preventing the illegal-instruction crash while allowing the engine library to load.
@@ -112,6 +113,14 @@ lib/arm64-v8a/libengine.so @ 0x7cfcb8/0x7cfcbc:
 ```
 106:120:work/securestream_apk/smali/com/Entry.smali
     if-eqz v0, :cond_0
+```
+
+[EV2F] `djp` trap sites patched to return null:
+```
+lib/arm64-v8a/libengine.so @ 0x4d32d8/0x4d52d8:
+00 00 80 d2 c0 03 5f d6
+(mov x0,#0; ret)
+```
 
     const/4 v0, 0x0
 
