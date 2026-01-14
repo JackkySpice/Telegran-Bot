@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/g83chd.apk
-- SHA-256: `b6eddf14a546014481f6794a9f908d0246521cc8144e8f87a1134f69b8932683`
+- Catbox: https://files.catbox.moe/mfyj63.apk
+- SHA-256: `2186fd1dd6ddd9deba52fea1b008bac301173f2758462f9b1c0002e6944007c7`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -61,7 +61,7 @@ Preconditions: None
 
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
-2. Patch `lib/arm64-v8a/libengine.so` at offsets `0x74c2d4` and `0x74c2d8` to replace the trap with `RET`.
+2. Patch `lib/arm64-v8a/libengine.so` at offsets `0x74c2d4`, `0x74c2d8`, `0x4572d4`, and `0x4572d8` to replace traps with `RET`.
 3. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
 4. Rebuild and sign the APK.
 5. Install and run the modified APK.
@@ -72,7 +72,7 @@ Native trap instructions are neutralized at the crash site, preventing the illeg
 ### Evidence (sanitized)
 [EV2A] Trap instructions neutralized at crash site:
 ```
-lib/arm64-v8a/libengine.so @ 0x74c2d4/0x74c2d8:
+lib/arm64-v8a/libengine.so @ 0x74c2d4/0x74c2d8 and 0x4572d4/0x4572d8:
 c0 03 5f d6 c0 03 5f d6
 (ret; ret)
 ```
