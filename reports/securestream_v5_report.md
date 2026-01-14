@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/ayt4g0.apk
-- SHA-256: `a0c972ec8b07142ee95410a8ed058676be5ca6e8547b5318c71a995057ee9ae4`
+- Catbox: https://files.catbox.moe/fe9bof.apk
+- SHA-256: `0e008e60448192b90ef87e71aecdf8a2b7a787b290fd4073febeefc7100dcb68`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -61,11 +61,11 @@ Preconditions: None
 
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
-2. Patch `lib/arm64-v8a/libengine.so` to disable `INIT_ARRAY` execution by setting `INIT_ARRAY` and `INIT_ARRAYSZ` to 0 in the dynamic section (offsets `0x7d9cf8` and `0x7d9d08` value fields).
-3. Patch `lib/arm64-v8a/libengine.so` at `JNI_OnLoad` (offset `0x00cdd94`) to immediately return `JNI_VERSION_1_6`.
-4. Patch `lib/arm64-v8a/libengine.so` at offsets `0x74c2d4`, `0x74c2d8`, `0x4572d4`, and `0x4572d8` to replace traps with `RET`.
-5. Patch `androidx/appcompat/view/menu/a8.smali` to skip `Native.ac(...)` in `callActivityOnResume`.
-6. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
+2. Restore original `lib/arm64-v8a/libengine.so` (keep native registration intact).
+3. Patch `androidx/appcompat/view/menu/fv0.smali` to skip native init calls.
+4. Patch `androidx/appcompat/view/menu/a8.smali` to skip `Native.ac(...)` in `callActivityOnResume`.
+5. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
+6. Patch `com/Entry.smali` to return empty byte array instead of calling `Native.djp(...)`.
 7. Rebuild and sign the APK.
 8. Install and run the modified APK.
 
@@ -73,27 +73,17 @@ Preconditions: None
 Native trap instructions are neutralized at the crash site, preventing the illegal-instruction crash while allowing the engine library to load.
 
 ### Evidence (sanitized)
-[EV2A] `INIT_ARRAY` execution disabled (dynamic section):
+[EV2A] Native init call sites skipped in Java layer:
 ```
-lib/arm64-v8a/libengine.so @ 0x7d9cf8 (INIT_ARRAY) = 0x0
-lib/arm64-v8a/libengine.so @ 0x7d9d08 (INIT_ARRAYSZ) = 0x0
+1069:1075:work/securestream_apk/smali/androidx/appcompat/view/menu/fv0.smali
+    :cond_5
+    nop
+
+    new-instance v5, Landroidx/appcompat/view/menu/fv0$b;
+    invoke-direct {v5}, Landroidx/appcompat/view/menu/fv0$b;-><init>()V
 ```
 
-[EV2B] `JNI_OnLoad` short-circuit:
-```
-lib/arm64-v8a/libengine.so @ 0x00cdd94:
-c0 00 80 52 20 00 a0 72 c0 03 5f d6
-(movz w0,#0x6; movk w0,#0x1,lsl#16; ret)
-```
-
-[EV2C] Trap instructions neutralized at crash site:
-```
-lib/arm64-v8a/libengine.so @ 0x74c2d4/0x74c2d8 and 0x4572d4/0x4572d8:
-c0 03 5f d6 c0 03 5f d6
-(ret; ret)
-```
-
-[EV2D] `Native.ac(...)` skipped during activity resume:
+[EV2B] `Native.ac(...)` skipped during activity resume:
 ```
 324:332:work/securestream_apk/smali/androidx/appcompat/view/menu/a8.smali
     invoke-virtual {v1, v2, v3}, Ljava/lang/Class;->getDeclaredMethod(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
@@ -105,10 +95,23 @@ c0 03 5f d6 c0 03 5f d6
     nop
 ```
 
-[EV2E] `Native.ic(Context)` invocations removed in integrity init path:
+[EV2C] `Native.ic(Context)` invocations removed in integrity init path:
 ```
 453:482:work/securestream_apk/smali/androidx/appcompat/view/menu/uu0.smali
     sget-object p1, Landroidx/appcompat/view/menu/uu0$a;->o:Landroidx/appcompat/view/menu/uu0$a;
+```
+
+[EV2D] `Native.djp(...)` replaced with empty byte array:
+```
+106:120:work/securestream_apk/smali/com/Entry.smali
+    if-eqz v0, :cond_0
+
+    const/4 v0, 0x0
+
+    new-array p1, v0, [B
+
+    invoke-interface {p2, p1}, Landroidx/appcompat/view/menu/hd0$d;->c(Ljava/lang/Object;)V
+```
 
     iput-object p1, p0, Landroidx/appcompat/view/menu/uu0;->a:Landroidx/appcompat/view/menu/uu0$a;
 
