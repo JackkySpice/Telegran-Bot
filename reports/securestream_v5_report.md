@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/wszfmw.apk
-- SHA-256: `eef8975a8042882719e811c0a979a6577a1fe70a6c37b056c9210d843e2a92a0`
+- Catbox: https://files.catbox.moe/obfazg.apk
+- SHA-256: `975f40fea1047cd3701bea99e59be0cb77b57c5d495b7db9b6d5ad1b4f0e6196`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -53,7 +53,7 @@ Activation key validation relies on a client-side MethodChannel result that can 
 
 ---
 
-## Finding 2: Native integrity/anti-tamper bypass via JNI_OnLoad short-circuit
+## Finding 2: Native integrity/anti-tamper bypass via skipped init calls
 Severity: High  
 Confidence: Medium  
 Affected Asset: `SecureStream-v5.0-Prod.apk`  
@@ -61,20 +61,23 @@ Preconditions: None
 
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
-2. Patch `lib/arm64-v8a/libengine.so` at `JNI_OnLoad` (offset `0x00cdd94`) to return `JNI_VERSION_1_6` immediately.
+2. Patch `androidx/appcompat/view/menu/fv0.smali` to skip native init calls `Native.i(...)` and `b20.c(...)`.
 3. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
 4. Rebuild and sign the APK.
 5. Install and run the modified APK.
 
 ### Impact
-The native anti-tamper initialization path is short-circuited at `JNI_OnLoad`, preventing integrity checks from running and avoiding the deliberate crash path, while still allowing the library to load successfully.
+Native anti-tamper init hooks are skipped from the Java layer, preventing integrity checks that trigger an illegal-instruction crash while keeping the engine library loaded.
 
 ### Evidence (sanitized)
-[EV2A] `JNI_OnLoad` patched to return `0x00010006` (JNI 1.6):
+[EV2A] Native init calls skipped during app init:
 ```
-lib/arm64-v8a/libengine.so @ 0x00cdd94:
-c0 00 80 52 20 00 a0 72 c0 03 5f d6
-(movz w0,#0x6; movk w0,#0x1,lsl#16; ret)
+1066:1075:work/securestream_apk/smali/androidx/appcompat/view/menu/fv0.smali
+    :cond_5
+    nop
+
+    new-instance v5, Landroidx/appcompat/view/menu/fv0$b;
+    invoke-direct {v5}, Landroidx/appcompat/view/menu/fv0$b;-><init>()V
 ```
 
 [EV2B] `Native.ic(Context)` invocations removed in integrity init path:
@@ -90,7 +93,7 @@ c0 00 80 52 20 00 a0 72 c0 03 5f d6
 ```
 
 ### Root Cause
-Integrity enforcement relies on client-side native initialization with no server-side attestation. Short-circuiting `JNI_OnLoad` bypasses checks before they execute.
+Integrity enforcement relies on client-side native initialization with no server-side attestation. Skipping the native init calls from the Java layer bypasses the check flow.
 
 ### Recommended Fix
 - Enforce integrity via server-side checks and refuse to issue activation tokens to tampered clients.
