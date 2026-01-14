@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/mfyj63.apk
-- SHA-256: `2186fd1dd6ddd9deba52fea1b008bac301173f2758462f9b1c0002e6944007c7`
+- Catbox: https://files.catbox.moe/zgyfmy.apk
+- SHA-256: `4214b40e5db8956a28418d0f1a31ba565d852f7d6bd98f75867626270a3e109a`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -62,9 +62,10 @@ Preconditions: None
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
 2. Patch `lib/arm64-v8a/libengine.so` at offsets `0x74c2d4`, `0x74c2d8`, `0x4572d4`, and `0x4572d8` to replace traps with `RET`.
-3. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
-4. Rebuild and sign the APK.
-5. Install and run the modified APK.
+3. Patch `androidx/appcompat/view/menu/a8.smali` to skip `Native.ac(...)` in `callActivityOnResume`.
+4. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
+5. Rebuild and sign the APK.
+6. Install and run the modified APK.
 
 ### Impact
 Native trap instructions are neutralized at the crash site, preventing the illegal-instruction crash while allowing the engine library to load.
@@ -77,7 +78,19 @@ c0 03 5f d6 c0 03 5f d6
 (ret; ret)
 ```
 
-[EV2B] `Native.ic(Context)` invocations removed in integrity init path:
+[EV2B] `Native.ac(...)` skipped during activity resume:
+```
+324:332:work/securestream_apk/smali/androidx/appcompat/view/menu/a8.smali
+    invoke-virtual {v1, v2, v3}, Ljava/lang/Class;->getDeclaredMethod(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
+
+    move-result-object v0
+
+    nop
+
+    nop
+```
+
+[EV2C] `Native.ic(Context)` invocations removed in integrity init path:
 ```
 453:482:work/securestream_apk/smali/androidx/appcompat/view/menu/uu0.smali
     sget-object p1, Landroidx/appcompat/view/menu/uu0$a;->o:Landroidx/appcompat/view/menu/uu0$a;
