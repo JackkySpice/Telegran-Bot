@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/0w09ml.apk
-- SHA-256: `6b5395a5cb51d1b11d02cf1cd0e3080b35fe221386989866a1ad885008e2f4b2`
+- Catbox: https://files.catbox.moe/wszfmw.apk
+- SHA-256: `eef8975a8042882719e811c0a979a6577a1fe70a6c37b056c9210d843e2a92a0`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -53,7 +53,7 @@ Activation key validation relies on a client-side MethodChannel result that can 
 
 ---
 
-## Finding 2: Native integrity/anti-tamper bypass via engine load removal + stubs
+## Finding 2: Native integrity/anti-tamper bypass via JNI_OnLoad short-circuit
 Severity: High  
 Confidence: Medium  
 Affected Asset: `SecureStream-v5.0-Prod.apk`  
@@ -61,53 +61,23 @@ Preconditions: None
 
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
-2. Patch `com/snake/App.smali` to remove `System.loadLibrary("engine")`.
-3. Patch `com/snake/helper/Native.smali` to implement no-op Java stubs for native methods.
-4. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
-5. Rebuild and sign the APK.
-6. Install and run the modified APK.
+2. Patch `lib/arm64-v8a/libengine.so` at `JNI_OnLoad` (offset `0x00cdd94`) to return `JNI_VERSION_1_6` immediately.
+3. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
+4. Rebuild and sign the APK.
+5. Install and run the modified APK.
 
 ### Impact
-The native anti-tamper library never loads and its native checks are stubbed, preventing the deliberate crash path and allowing modified packages to run without triggering native integrity enforcement.
+The native anti-tamper initialization path is short-circuited at `JNI_OnLoad`, preventing integrity checks from running and avoiding the deliberate crash path, while still allowing the library to load successfully.
 
 ### Evidence (sanitized)
-[EV2A] Engine library load removed from Application static init:
+[EV2A] `JNI_OnLoad` patched to return `0x00010006` (JNI 1.6):
 ```
-6:11:work/securestream_apk/smali/com/snake/App.smali
-.method static constructor <clinit>()V
-    .locals 0
-
-    return-void
-.end method
+lib/arm64-v8a/libengine.so @ 0x00cdd94:
+c0 00 80 52 20 00 a0 72 c0 03 5f d6
+(movz w0,#0x6; movk w0,#0x1,lsl#16; ret)
 ```
 
-[EV2B] Native methods stubbed to no-op/empty values:
-```
-6:45:work/securestream_apk/smali/com/snake/helper/Native.smali
-.method public static ac(Ljava/lang/Object;Ljava/lang/Object;)V
-    .annotation build Landroidx/annotation/Keep;
-    .end annotation
-
-    .locals 0
-
-    return-void
-.end method
-
-.method public static djp(I)[B
-    .annotation build Landroidx/annotation/Keep;
-    .end annotation
-
-    .locals 1
-
-    const/4 v0, 0x0
-
-    new-array v0, v0, [B
-
-    return-object v0
-.end method
-```
-
-[EV2C] `Native.ic(Context)` invocations removed in integrity init path:
+[EV2B] `Native.ic(Context)` invocations removed in integrity init path:
 ```
 453:482:work/securestream_apk/smali/androidx/appcompat/view/menu/uu0.smali
     sget-object p1, Landroidx/appcompat/view/menu/uu0$a;->o:Landroidx/appcompat/view/menu/uu0$a;
@@ -120,7 +90,7 @@ The native anti-tamper library never loads and its native checks are stubbed, pr
 ```
 
 ### Root Cause
-Integrity enforcement relies on a client-side native library and call sites only. Without server-side attestation, the checks can be bypassed by removing the library load and stubbing native entry points.
+Integrity enforcement relies on client-side native initialization with no server-side attestation. Short-circuiting `JNI_OnLoad` bypasses checks before they execute.
 
 ### Recommended Fix
 - Enforce integrity via server-side checks and refuse to issue activation tokens to tampered clients.
