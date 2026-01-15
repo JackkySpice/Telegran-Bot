@@ -14,6 +14,13 @@
 - Static APK inventory -> Identify package, version, native libs -> Stop if asset mismatch confirmed
 - Lightweight string scan -> Find endpoints/secrets -> Stop if only third-party SDK noise appears
 
+## Execution Log (UTC, approx)
+- 2026-01-15 01:09:32Z - `curl -L https://files.catbox.moe/he4y8p.apk -o /workspace/artifacts/securestream.apk`
+- 2026-01-15 01:09:32Z - `unzip -l /workspace/artifacts/securestream.apk`
+- 2026-01-15 01:09:32Z - `python3 -m pip install --upgrade androguard`
+- 2026-01-15 01:09:32Z - `python3` (string scan for URLs/secrets)
+- 2026-01-15 01:09:32Z - `python3` (manifest extraction via `androguard`)
+
 ## Findings
 No valid security findings for SecureStream can be produced from the provided file.
 
