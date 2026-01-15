@@ -35,6 +35,7 @@
 - 2026-01-15 01:25:46Z - `python3` (DEX class scan for Play Integrity / attestation)
 - 2026-01-15 01:25:46Z - `python3` (string scan for Frida indicators)
 - 2026-01-15 01:27:42Z - `python3` (keyword scan for AIMX/VIP/OPENGI)
+- 2026-01-15 01:32:54Z - `python3` (native string scan for AIMX login/key hints)
 
 ## Findings
 No confirmed vulnerabilities were identified from static analysis alone.
@@ -52,6 +53,7 @@ No confirmed vulnerabilities were identified from static analysis alone.
 - AIMX-related classes and lambdas are present in DEX (e.g., `Lcom/aimx/Init;`, `com-aimx-ModMenu`, `com-aimx-LoginOverlay`). [EV-DEX-AIMX-01]
 - Native strings include `AIMX VIP` in `lib/arm64-v8a/libarm.so`. [EV-NATIVE-AIMX-01]
 - No direct `OPENGI` string located; a similarly named asset `OpenGift.json` is present. [EV-ASSET-OPENGIFT-01]
+- Native strings also include `validateKey`, `loadKey`, `saveKey`, `deleteKey`, `USER_KEY`, `AUTHENTICATE`, and `Login failed`, suggesting a local key workflow with possible server validation. [EV-NATIVE-AIMX-KEY-01]
 
 ## Evidence (Sanitized)
 - [EV-APK-HASH-01] SHA256 of `/workspace/artifacts/securestream.apk`: `c04d2e0e3d301f45fa8b74e9855535c964b7a8bd8907d30740af175a8a9ddb71`.
@@ -65,6 +67,7 @@ No confirmed vulnerabilities were identified from static analysis alone.
 - [EV-DEX-AIMX-01] DEX strings include: `Lcom/aimx/Init;`, `lambda$showMenu$7$com-aimx-ModMenu`, `lambda$doLogin$4$com-aimx-LoginOverlay`.
 - [EV-NATIVE-AIMX-01] Native strings in `lib/arm64-v8a/libarm.so` include: `AIMX VIP`.
 - [EV-ASSET-OPENGIFT-01] Asset `assets/unpack/OpenGift.json` contains `"OpenGift": {`.
+- [EV-NATIVE-AIMX-KEY-01] Native strings in `lib/arm64-v8a/libarm.so` include: `validateKey`, `loadKey`, `saveKey`, `deleteKey`, `USER_KEY`, `AUTHENTICATE`, `Login failed`, `Invalid Key Format`.
 
 ## Limitations
 - Static-only analysis (no runtime instrumentation or device execution).
