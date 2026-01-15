@@ -55,6 +55,9 @@ No confirmed vulnerabilities were identified from static analysis alone.
 - No direct `OPENGI` string located; a similarly named asset `OpenGift.json` is present. [EV-ASSET-OPENGIFT-01]
 - Native strings also include `validateKey`, `loadKey`, `saveKey`, `deleteKey`, `USER_KEY`, `AUTHENTICATE`, and `Login failed`, suggesting a local key workflow with possible server validation. [EV-NATIVE-AIMX-KEY-01]
 
+## User-Provided Network Observation
+- TLS connection observed during key validation with SNI `aimx.koscheat.xyz` to `172.67.70.55:443` (encrypted payload, < 1 s). [EV-NET-SNI-01]
+
 ## Evidence (Sanitized)
 - [EV-APK-HASH-01] SHA256 of `/workspace/artifacts/securestream.apk`: `c04d2e0e3d301f45fa8b74e9855535c964b7a8bd8907d30740af175a8a9ddb71`.
 - [EV-APK-MANIFEST-01] Manifest extraction shows package `com.miniclip.eightballpool` and `usesCleartextTraffic=true`.
@@ -68,10 +71,12 @@ No confirmed vulnerabilities were identified from static analysis alone.
 - [EV-NATIVE-AIMX-01] Native strings in `lib/arm64-v8a/libarm.so` include: `AIMX VIP`.
 - [EV-ASSET-OPENGIFT-01] Asset `assets/unpack/OpenGift.json` contains `"OpenGift": {`.
 - [EV-NATIVE-AIMX-KEY-01] Native strings in `lib/arm64-v8a/libarm.so` include: `validateKey`, `loadKey`, `saveKey`, `deleteKey`, `USER_KEY`, `AUTHENTICATE`, `Login failed`, `Invalid Key Format`.
+- [EV-NET-SNI-01] User-provided traffic summary shows SNI `aimx.koscheat.xyz` to `172.67.70.55:443` during validation (TLS encrypted).
 
 ## Limitations
 - Static-only analysis (no runtime instrumentation or device execution).
 - No Web API base URL provided for server-side validation.
+- Network observation is user-provided and not independently verified.
 
 ## Recommended Next Steps (Scope-Alignment)
 - Provide the Web API base URL or explicit host for server-side testing.
