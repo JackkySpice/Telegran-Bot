@@ -34,6 +34,7 @@
 - 2026-01-15 01:25:46Z - `python3` (decoded `res/xml/network_security_config.xml`)
 - 2026-01-15 01:25:46Z - `python3` (DEX class scan for Play Integrity / attestation)
 - 2026-01-15 01:25:46Z - `python3` (string scan for Frida indicators)
+- 2026-01-15 01:27:42Z - `python3` (keyword scan for AIMX/VIP/OPENGI)
 
 ## Findings
 No confirmed vulnerabilities were identified from static analysis alone.
@@ -47,6 +48,11 @@ No confirmed vulnerabilities were identified from static analysis alone.
 - The APK contains many third-party SDKs and advertising endpoints; no SecureStream-specific domains or API hosts were discovered in static strings.
 - No modified APK was produced because no bypass or vulnerability was confirmed.
 
+## Requested Keyword Search (AIMX / VIP / OPENGI)
+- AIMX-related classes and lambdas are present in DEX (e.g., `Lcom/aimx/Init;`, `com-aimx-ModMenu`, `com-aimx-LoginOverlay`). [EV-DEX-AIMX-01]
+- Native strings include `AIMX VIP` in `lib/arm64-v8a/libarm.so`. [EV-NATIVE-AIMX-01]
+- No direct `OPENGI` string located; a similarly named asset `OpenGift.json` is present. [EV-ASSET-OPENGIFT-01]
+
 ## Evidence (Sanitized)
 - [EV-APK-HASH-01] SHA256 of `/workspace/artifacts/securestream.apk`: `c04d2e0e3d301f45fa8b74e9855535c964b7a8bd8907d30740af175a8a9ddb71`.
 - [EV-APK-MANIFEST-01] Manifest extraction shows package `com.miniclip.eightballpool` and `usesCleartextTraffic=true`.
@@ -56,6 +62,9 @@ No confirmed vulnerabilities were identified from static analysis alone.
   - `Lcom/miniclip/attest/PlayIntegrityProvider;`
   - `Lcom/miniclip/mcattest/PlayIntegrityProviderNativeBridge;`
 - [EV-DEX-FRIDA-01] DEX strings include: `FridaDetected`, `fridaDetected`, `fridaCustomDetected`, `frida detection error`.
+- [EV-DEX-AIMX-01] DEX strings include: `Lcom/aimx/Init;`, `lambda$showMenu$7$com-aimx-ModMenu`, `lambda$doLogin$4$com-aimx-LoginOverlay`.
+- [EV-NATIVE-AIMX-01] Native strings in `lib/arm64-v8a/libarm.so` include: `AIMX VIP`.
+- [EV-ASSET-OPENGIFT-01] Asset `assets/unpack/OpenGift.json` contains `"OpenGift": {`.
 
 ## Limitations
 - Static-only analysis (no runtime instrumentation or device execution).
