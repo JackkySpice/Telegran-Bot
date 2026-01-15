@@ -188,9 +188,29 @@ Client resources contain sensitive API keys without strong runtime/usage restric
 
 ---
 
+## Observation: Repackaging alone triggers a runtime crash
+Severity: Informational  
+Confidence: Medium  
+Affected Asset: `SecureStream-v5.0-Prod.apk`  
+Preconditions: Rebuilt the original APK (no code changes) and re-signed  
+
+### Details
+Rebuilding the original APK without modifying code still results in a runtime crash (`SIGSEGV`, `SEGV_ACCERR`) shortly after launch. Log lines also show repeated `ClassLoaderContext classpath size mismatch` warnings, which commonly appear when a repack tool drops or rewrites multi-dex metadata. This strongly suggests a packaging- or signature-bound integrity check (or tool-induced packaging breakage) that fails even when the app logic is untouched.
+
+### Impact
+Any repackaging (even without modifications) destabilizes runtime behavior, indicating that patch attempts must preserve multi-dex structure and then explicitly bypass integrity checks tied to signing or APK layout.
+
+### Recommended Next Steps
+- Capture a full crash block (`adb logcat -b crash -d` without filtering) to identify the native library and offset causing the fault.
+- Avoid repack tools that discard secondary dex files; prefer `apktool` with verified multi-dex output and re-sign with v2/v3.
+- Target signature/integrity verification paths in native code and disable the crash trigger rather than only neutralizing illegal instructions.
+
+---
+
 ## Execution Log (summary)
 - Downloaded APK from `https://files.catbox.moe/8i3bsx.apk`
 - Decompiled with apktool 2.10.0
 - Patched `com/Entry.smali` and `androidx/appcompat/view/menu/uu0.smali`
 - Rebuilt and signed APK with jarsigner
 - Uploaded modified APK to catbox
+- Observed `SIGSEGV (SEGV_ACCERR)` when rebuilding and re-signing the original APK with no code changes
