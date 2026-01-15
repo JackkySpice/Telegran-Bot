@@ -36,6 +36,9 @@
 - 2026-01-15 01:25:46Z - `python3` (string scan for Frida indicators)
 - 2026-01-15 01:27:42Z - `python3` (keyword scan for AIMX/VIP/OPENGI)
 - 2026-01-15 01:32:54Z - `python3` (native string scan for AIMX login/key hints)
+- 2026-01-15 01:39:39Z - `curl -I https://aimx.koscheat.xyz` (header probe)
+- 2026-01-15 01:39:39Z - `curl https://aimx.koscheat.xyz/robots.txt`
+- 2026-01-15 01:39:40Z - `curl https://aimx.koscheat.xyz/.well-known/security.txt`
 
 ## Findings
 No confirmed vulnerabilities were identified from static analysis alone.
@@ -44,6 +47,7 @@ No confirmed vulnerabilities were identified from static analysis alone.
 - Play Integrity integration is present (Play Integrity provider + native bridge classes). [EV-DEX-PLAYINTEGRITY-01]
 - Frida detection strings are present in DEX, indicating instrumentation detection logic. [EV-DEX-FRIDA-01]
 - Network security config permits cleartext traffic only to `127.0.0.1`. [EV-NSC-01]
+- HTTPS access to `aimx.koscheat.xyz` is blocked by Cloudflare challenge for automated requests (HTTP 403 + challenge page). [EV-HTTP-403-01]
 
 ## Notes
 - The APK contains many third-party SDKs and advertising endpoints; no SecureStream-specific domains or API hosts were discovered in static strings.
@@ -72,11 +76,15 @@ No confirmed vulnerabilities were identified from static analysis alone.
 - [EV-ASSET-OPENGIFT-01] Asset `assets/unpack/OpenGift.json` contains `"OpenGift": {`.
 - [EV-NATIVE-AIMX-KEY-01] Native strings in `lib/arm64-v8a/libarm.so` include: `validateKey`, `loadKey`, `saveKey`, `deleteKey`, `USER_KEY`, `AUTHENTICATE`, `Login failed`, `Invalid Key Format`.
 - [EV-NET-SNI-01] User-provided traffic summary shows SNI `aimx.koscheat.xyz` to `172.67.70.55:443` during validation (TLS encrypted).
+- [EV-HTTP-403-01] `curl -I https://aimx.koscheat.xyz` returns `HTTP/2 403` with `cf-mitigated: challenge` (Cloudflare).
+- [EV-ROBOTS-01] `robots.txt` allows `/` with content-signal `ai-train=no` (Cloudflare managed).
+- [EV-SECURITYTXT-01] `/.well-known/security.txt` request returns Cloudflare block page (Ray ID present; IP redacted).
 
 ## Limitations
 - Static-only analysis (no runtime instrumentation or device execution).
 - No Web API base URL provided for server-side validation.
 - Network observation is user-provided and not independently verified.
+- Cloudflare challenge blocks automated HTTP access; bypass was not attempted.
 
 ## Recommended Next Steps (Scope-Alignment)
 - Provide the Web API base URL or explicit host for server-side testing.
