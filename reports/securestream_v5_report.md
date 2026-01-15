@@ -5,8 +5,8 @@ Assessment type: Client-side, low-impact static analysis + patching
 Timestamp (UTC): 2026-01-14T22:41:54Z  
 
 ### Modified APK (required deliverable)
-- Catbox: https://files.catbox.moe/so21m8.apk
-- SHA-256: `5275606a78092af00edccb45357d564ebfcb8a98b7957656aef36a6ea1afc7b9`
+- Catbox: https://files.catbox.moe/5cfmv4.apk
+- SHA-256: `3389555d99f66f8b2fa932f72cc909ec06a85d035c288ac041aca3ddfbd5d164`
 - Signed: Uber APK Signer (debug keystore, v1/v2/v3)
 
 ---
@@ -62,19 +62,25 @@ Preconditions: None
 ### Steps to Reproduce
 1. Decompile APK with `apktool`.
 2. Restore original `lib/arm64-v8a/libengine.so` (keep native registration intact).
-3. Patch `com/snake/App.smali` to skip `uu0.e(...)` in `attachBaseContext` and `uu0.f()` in `onCreate`.
-4. Patch `androidx/appcompat/view/menu/fv0.smali` to skip native init calls.
-5. Patch `androidx/appcompat/view/menu/a8.smali` to skip `Native.ac(...)` in `callActivityOnResume`.
-6. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
-7. Patch `com/Entry.smali` to return empty byte array instead of calling `Native.djp(...)`.
-8. Rebuild and sign the APK.
-9. Install and run the modified APK.
+3. Patch `lib/arm64-v8a/libapp.so` to replace all `BRK #0` and `UDF` instructions in `.text` with AArch64 `NOP`.
+4. Patch `com/snake/App.smali` to skip `uu0.e(...)` in `attachBaseContext` and `uu0.f()` in `onCreate`.
+5. Patch `androidx/appcompat/view/menu/fv0.smali` to skip native init calls.
+6. Patch `androidx/appcompat/view/menu/a8.smali` to skip `Native.ac(...)` in `callActivityOnResume`.
+7. Patch `androidx/appcompat/view/menu/uu0.smali` to remove two calls to `com/snake/helper/Native.ic(Context)`.
+8. Patch `com/Entry.smali` to return empty byte array instead of calling `Native.djp(...)`.
+9. Rebuild and sign the APK.
+10. Install and run the modified APK.
 
 ### Impact
 Native trap instructions are neutralized at the crash site, preventing the illegal-instruction crash while allowing the engine library to load.
 
 ### Evidence (sanitized)
-[EV2A] Engine init skipped in Application:
+[EV2A] `libapp.so` traps neutralized:
+```
+lib/arm64-v8a/libapp.so .text: patched 1846 x BRK + 60 x UDF -> NOP
+```
+
+[EV2B] Engine init skipped in Application:
 ```
 23:33:work/securestream_apk/smali/com/snake/App.smali
 .method public attachBaseContext(Landroid/content/Context;)V
@@ -86,7 +92,7 @@ Native trap instructions are neutralized at the crash site, preventing the illeg
 .end method
 ```
 
-[EV2B] Native init call sites skipped in Java layer:
+[EV2C] Native init call sites skipped in Java layer:
 ```
 1069:1075:work/securestream_apk/smali/androidx/appcompat/view/menu/fv0.smali
     :cond_5
@@ -96,7 +102,7 @@ Native trap instructions are neutralized at the crash site, preventing the illeg
     invoke-direct {v5}, Landroidx/appcompat/view/menu/fv0$b;-><init>()V
 ```
 
-[EV2C] `Native.ac(...)` skipped during activity resume:
+[EV2D] `Native.ac(...)` skipped during activity resume:
 ```
 324:332:work/securestream_apk/smali/androidx/appcompat/view/menu/a8.smali
     invoke-virtual {v1, v2, v3}, Ljava/lang/Class;->getDeclaredMethod(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
@@ -108,13 +114,13 @@ Native trap instructions are neutralized at the crash site, preventing the illeg
     nop
 ```
 
-[EV2D] `Native.ic(Context)` invocations removed in integrity init path:
+[EV2E] `Native.ic(Context)` invocations removed in integrity init path:
 ```
 453:482:work/securestream_apk/smali/androidx/appcompat/view/menu/uu0.smali
     sget-object p1, Landroidx/appcompat/view/menu/uu0$a;->o:Landroidx/appcompat/view/menu/uu0$a;
 ```
 
-[EV2E] `Native.djp(...)` replaced with empty byte array:
+[EV2F] `Native.djp(...)` replaced with empty byte array:
 ```
 106:120:work/securestream_apk/smali/com/Entry.smali
     if-eqz v0, :cond_0
