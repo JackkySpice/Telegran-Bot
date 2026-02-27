@@ -30,15 +30,31 @@ async def _init_tables(db: aiosqlite.Connection):
             first_name    TEXT,
             referred_by   INTEGER REFERENCES users(user_id),
             referral_code TEXT UNIQUE,
+            wallet_address TEXT,
             balance_trx   REAL DEFAULT 0.0,
             balance_usdt  REAL DEFAULT 0.0,
             created_at    TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS deposits (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id       INTEGER NOT NULL REFERENCES users(user_id),
+            plan_id       INTEGER NOT NULL,
+            amount        REAL NOT NULL,
+            currency      TEXT NOT NULL DEFAULT 'TRX',
+            cp_txn_id     TEXT UNIQUE,
+            deposit_address TEXT,
+            status        TEXT NOT NULL DEFAULT 'pending',
+            cp_status     INTEGER DEFAULT 0,
+            created_at    TEXT DEFAULT (datetime('now')),
+            confirmed_at  TEXT
         );
 
         CREATE TABLE IF NOT EXISTS investments (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id       INTEGER NOT NULL REFERENCES users(user_id),
             plan_id       INTEGER NOT NULL,
+            deposit_id    INTEGER REFERENCES deposits(id),
             amount        REAL NOT NULL,
             currency      TEXT NOT NULL DEFAULT 'TRX',
             profit_pct    REAL NOT NULL,
@@ -85,6 +101,12 @@ async def _init_tables(db: aiosqlite.Connection):
 
         INSERT OR IGNORE INTO settings (key, value) VALUES ('payouts_paused', '0');
 
+        CREATE INDEX IF NOT EXISTS idx_deposits_user
+            ON deposits(user_id);
+        CREATE INDEX IF NOT EXISTS idx_deposits_txn
+            ON deposits(cp_txn_id);
+        CREATE INDEX IF NOT EXISTS idx_deposits_status
+            ON deposits(status);
         CREATE INDEX IF NOT EXISTS idx_investments_user
             ON investments(user_id);
         CREATE INDEX IF NOT EXISTS idx_investments_status

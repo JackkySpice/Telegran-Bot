@@ -1,17 +1,18 @@
 # Kimielbot
 
-Telegram bot for an automated investment platform with tiered compensation plans, referral commissions, and weekly profit distribution.
+Telegram investment bot with CoinPayments integration, tiered compensation plans, referral commissions, and automated daily profit distribution.
 
 ## Features
 
+- **CoinPayments Integration** for anonymous crypto deposits (TRX, USDT/TRC-20)
 - **3 Tiered Investment Plans** with varying profit rates and lock periods
-- **5-Level Referral System** with commissions based on profit (not deposit)
-- **Weekly Payout Engine** (every Sunday) with admin pause/resume
-- **5% Withdrawal Fee** applied automatically
-- **Profit Split** (70% users / 20% reserve / 10% team)
-- **TRX & USDT Support**
+- **5-Level Referral System** (commissions on profit, not deposit)
+- **Automated Daily Earnings** via scheduled job (00:00 UTC)
+- **Weekly Withdrawals** (Sundays) with 5% fee
+- **IPN Webhook Server** for automatic payment confirmations
+- **Admin Dashboard** with deposit/withdrawal management, payout pause/resume
+- **Offline Mode** if CoinPayments is not configured (admin confirms deposits manually)
 - **No Forced Referral** for withdrawals
-- **Admin Dashboard** with payout controls
 
 ## Investment Plans
 
@@ -21,25 +22,15 @@ Telegram bot for an automated investment platform with tiered compensation plans
 | Plan 2 | 251 - 450 TRX/USDT | 20% | After 30 days |
 | Plan 3 | 451 - 650 TRX/USDT | 22% | After 13 days |
 
-## Referral Commissions (on profit, not deposit)
+## Deposit Flow
 
-| Level | Commission |
-|-------|-----------|
-| Level 1 | 3% |
-| Level 2 | 1% |
-| Level 3 | 1% |
-| Level 4 | 1% |
-| Level 5 | 1% |
+1. User runs `/invest <plan> <amount> [TRX/USDT]`
+2. Bot creates a CoinPayments transaction and shows a deposit address
+3. User sends crypto to the address
+4. CoinPayments sends IPN callback to confirm payment
+5. Bot automatically activates the investment and notifies the user
 
-## Rules
-
-- 1 active plan per tier per user
-- Max 3 active plans at a time (one per tier)
-- Cannot repeat a plan until its 60-day period ends
-- Minimum withdrawal: 30 TRX
-- Withdrawal fee: 5%
-- Withdrawal schedule: Every Sunday
-- No invite required to withdraw
+If CoinPayments is not configured, deposits are created in "offline" mode and an admin confirms them manually via `/confirmdeposit <id>`.
 
 ## Setup
 
@@ -47,9 +38,11 @@ Telegram bot for an automated investment platform with tiered compensation plans
    ```bash
    pip install -r requirements.txt
    ```
-2. Copy `.env.example` to `.env` and fill in your bot token:
+2. Configure environment:
    ```bash
    cp .env.example .env
+   # Fill in: TELEGRAM_BOT_TOKEN, ADMIN_USER_IDS
+   # Optional: CP_PUBLIC_KEY, CP_PRIVATE_KEY, CP_IPN_SECRET, CP_MERCHANT_ID, IPN_URL
    ```
 3. Run the bot:
    ```bash
@@ -59,19 +52,47 @@ Telegram bot for an automated investment platform with tiered compensation plans
 ## Commands
 
 ### User Commands
-- `/start` - Register
-- `/plans` - View investment plans
-- `/invest <plan> <amount> [TRX/USDT]` - Invest
-- `/portfolio` - Check investments
-- `/balance` - View balance
-- `/withdraw <amount> [TRX/USDT]` - Withdraw (Sundays only)
-- `/referral` - Referral link and stats
-- `/howitworks` - How it works
+| Command | Description |
+|---------|-------------|
+| `/start` | Register |
+| `/plans` | View investment plans |
+| `/invest <plan> <amount> [TRX/USDT]` | Create a deposit |
+| `/deposits` | Check deposit status |
+| `/portfolio` | Check investment status |
+| `/balance` | View balance |
+| `/setwallet <address>` | Set withdrawal wallet |
+| `/withdraw <amount> [TRX/USDT]` | Withdraw (Sundays only) |
+| `/referral` | Referral link and stats |
+| `/howitworks` | How it works |
 
 ### Admin Commands
-- `/adminstats` - Dashboard
-- `/dailyrun` - Trigger daily earnings
-- `/pausepayouts` - Pause payouts (no trading profit)
-- `/resumepayouts` - Resume payouts
-- `/pending` - List pending withdrawals
-- `/approve <id>` - Approve a withdrawal
+| Command | Description |
+|---------|-------------|
+| `/adminstats` | Dashboard |
+| `/dailyrun` | Trigger daily earnings manually |
+| `/pausepayouts` | Pause all payouts |
+| `/resumepayouts` | Resume payouts |
+| `/pendingdeposits` | List pending deposits |
+| `/confirmdeposit <id>` | Manually confirm a deposit |
+| `/pending` | List pending withdrawals |
+| `/approve <id>` | Approve a withdrawal |
+
+## Architecture
+
+```
+bot.py              Main entry, scheduler, IPN server startup
+config.py           Plans, referral levels, CoinPayments settings
+database.py         SQLite (users, deposits, investments, referrals, withdrawals, settings)
+complan.py          Profit calc, referral distribution, daily earnings engine
+coinpayments.py     CoinPayments API client (HMAC auth, create_transaction, IPN verify)
+ipn_server.py       aiohttp webhook server for payment confirmations
+handlers/
+  start.py          /start, /help
+  invest.py         /plans, /invest, /deposits
+  withdraw.py       /balance, /setwallet, /withdraw
+  referral.py       /referral
+  info.py           /howitworks, /portfolio
+  admin.py          All admin commands
+tests/
+  test_complan.py   Unit tests for business logic
+```

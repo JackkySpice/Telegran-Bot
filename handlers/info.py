@@ -11,10 +11,12 @@ from complan import get_user_portfolio
 
 HOW_IT_WORKS = """Pano gumagana ang Kimielbot? 🤔
 
-1. Pumili ka ng plan (Plan 1, 2, or 3)
-2. Mag-invest ka ng TRX or USDT
-3. Araw-araw kumikita ka
-4. Every Sunday, pwede ka na mag-withdraw
+1. Pumili ng plan (/plans)
+2. /invest <plan> <amount> [TRX/USDT]
+3. Send crypto sa address na ibibigay ng bot
+4. Pag confirmed na yung payment, automatic na mag-start ang investment mo
+5. Araw-araw kumikita ka
+6. Every Sunday, pwede ka mag-withdraw
 
 3 Plans:
 
@@ -27,11 +29,12 @@ Plan 2 (251-450 TRX/USDT)
 Plan 3 (451-650 TRX/USDT)
 22% profit sa 60 days, unlock after 13 days
 
-Referral Bonus (optional, hindi required):
+Referral Bonus (optional):
 Level 1: 3% | Level 2-5: 1% each
 Based sa profit, hindi sa deposit.
 
 Withdrawal: Every Sunday, 5% fee, min 30 TRX.
+Set wallet first: /setwallet <TRX_address>
 
 Rules:
 - 1 active per plan, max 3 sabay-sabay

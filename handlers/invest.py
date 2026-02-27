@@ -1,12 +1,18 @@
-"""Investment handler."""
+"""Investment handler with CoinPayments deposit flow."""
 
 from __future__ import annotations
+
+import logging
 
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 import config
-from complan import can_user_invest, create_investment, validate_amount
+from coinpayments import CoinPaymentsError, create_transaction
+from complan import can_user_invest, validate_amount
+from database import get_db
+
+logger = logging.getLogger(__name__)
 
 
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -63,18 +69,111 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(reason)
         return
 
-    result = await create_investment(user_id, plan_id, amount, currency)
+    db = await get_db()
+    pending = await db.execute_fetchall(
+        "SELECT id FROM deposits WHERE user_id = ? AND plan_id = ? AND status = 'pending'",
+        (user_id, plan_id),
+    )
+    if pending:
+        await update.message.reply_text(
+            "May pending deposit ka pa for this plan. "
+            "Hintayin mo muna ma-confirm or mag-expire bago gumawa ng bago.\n\n"
+            "/deposits para makita status."
+        )
+        return
+
+    custom_data = f"{user_id}|{plan_id}"
+
+    if not config.CP_PUBLIC_KEY:
+        deposit_id = await _create_offline_deposit(user_id, plan_id, amount, currency)
+        await update.message.reply_text(
+            f"Deposit #{deposit_id} created (offline mode)\n\n"
+            f"Plan {plan_id} | {amount} {currency}\n"
+            "CoinPayments not configured. Admin will confirm manually.\n\n"
+            "/deposits para makita status."
+        )
+        return
+
+    try:
+        tx = await create_transaction(
+            amount=amount,
+            currency=currency,
+            ipn_url=config.IPN_URL,
+            custom=custom_data,
+        )
+    except CoinPaymentsError as e:
+        logger.error("CoinPayments error: %s", e)
+        await update.message.reply_text(
+            "Payment system error. Try again later or contact admin."
+        )
+        return
+
+    await db.execute(
+        """INSERT INTO deposits
+           (user_id, plan_id, amount, currency, cp_txn_id, deposit_address, status)
+           VALUES (?, ?, ?, ?, ?, ?, 'pending')""",
+        (user_id, plan_id, amount, currency, tx["txn_id"], tx["address"]),
+    )
+    await db.commit()
+
     plan = config.PLANS[plan_id]
+    timeout_hrs = config.DEPOSIT_TIMEOUT_HOURS
 
     await update.message.reply_text(
-        f"Invested! 🎉\n\n"
-        f"{plan['name']} | {amount} {currency}\n"
-        f"Profit: {result['total_profit']:.2f} {currency} ({plan['profit_pct']}%)\n"
-        f"Daily: {result['daily_profit']:.4f} {currency}\n"
-        f"Unlock: {plan['lock_days']} days | Duration: {plan['duration_days']} days"
+        f"Send {amount} {currency} to this address:\n\n"
+        f"`{tx['address']}`\n\n"
+        f"Plan: {plan['name']} ({plan['profit_pct']}% in {plan['duration_days']} days)\n"
+        f"TXN: {tx['txn_id']}\n"
+        f"Expires in {timeout_hrs} hours.\n\n"
+        "Investment starts once payment is confirmed.\n"
+        "/deposits para makita status.",
+        parse_mode="Markdown",
     )
+
+
+async def _create_offline_deposit(user_id: int, plan_id: int, amount: float, currency: str) -> int:
+    """Fallback for when CoinPayments is not configured. Admin confirms manually."""
+    db = await get_db()
+    await db.execute(
+        """INSERT INTO deposits
+           (user_id, plan_id, amount, currency, cp_txn_id, deposit_address, status)
+           VALUES (?, ?, ?, ?, ?, ?, 'pending')""",
+        (user_id, plan_id, amount, currency, None, "manual", "pending"),
+    )
+    await db.commit()
+    row = await db.execute_fetchall("SELECT last_insert_rowid()")
+    return row[0][0]
+
+
+async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show user's pending and recent deposits."""
+    user_id = update.effective_user.id
+    db = await get_db()
+
+    rows = await db.execute_fetchall(
+        """SELECT id, plan_id, amount, currency, status, deposit_address, cp_txn_id, created_at
+           FROM deposits WHERE user_id = ?
+           ORDER BY created_at DESC LIMIT 10""",
+        (user_id,),
+    )
+
+    if not rows:
+        await update.message.reply_text("No deposits yet. /invest para mag-start.")
+        return
+
+    lines = ["Your Deposits:\n"]
+    for r in rows:
+        dep_id, plan_id, amount, currency, status, addr, txn_id, created = r
+        emoji = {"pending": "⏳", "confirmed": "✅", "expired": "❌", "cancelled": "❌"}.get(status, "?")
+        lines.append(
+            f"{emoji} #{dep_id} | Plan {plan_id} | {amount} {currency} | {status}\n"
+            f"  {created[:16]}"
+        )
+
+    await update.message.reply_text("\n".join(lines))
 
 
 def register(app):
     app.add_handler(CommandHandler("plans", plans))
     app.add_handler(CommandHandler("invest", invest))
+    app.add_handler(CommandHandler("deposits", deposits))

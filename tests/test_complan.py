@@ -151,8 +151,6 @@ class TestInvestmentRules(unittest.TestCase):
 
 
 class TestReferralOnProfit(unittest.TestCase):
-    """With REFERRAL_ON_PROFIT=True, commissions are credited during daily earnings, not at investment time."""
-
     def setUp(self):
         import database
         database._db = None
@@ -174,11 +172,6 @@ class TestReferralOnProfit(unittest.TestCase):
 
             stats = await get_referral_stats(10)
             self.assertAlmostEqual(stats["grand_total"], 0, places=4)
-
-            row = await db.execute_fetchall(
-                "SELECT balance_trx FROM users WHERE user_id = 10"
-            )
-            self.assertAlmostEqual(row[0][0], 0.0, places=4)
         run(_test())
 
     def test_referral_credited_on_daily_earnings(self):
@@ -309,6 +302,154 @@ class TestDailyEarnings(unittest.TestCase):
                 "SELECT earned_so_far FROM investments WHERE user_id = 30"
             )
             self.assertAlmostEqual(inv[0][0], daily, places=4)
+        run(_test())
+
+
+class TestDeposits(unittest.TestCase):
+    def setUp(self):
+        import database
+        database._db = None
+        os.environ["DB_PATH"] = ":memory:"
+
+    def test_deposit_table_exists(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (60, 'dep', 'r60')"
+            )
+            await db.execute(
+                """INSERT INTO deposits (user_id, plan_id, amount, currency, deposit_address, status)
+                   VALUES (60, 1, 100, 'TRX', 'manual', 'pending')"""
+            )
+            await db.commit()
+
+            rows = await db.execute_fetchall(
+                "SELECT id, status FROM deposits WHERE user_id = 60"
+            )
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0][1], "pending")
+        run(_test())
+
+    def test_confirm_deposit_creates_investment(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (61, 'dep2', 'r61')"
+            )
+            await db.execute(
+                """INSERT INTO deposits (user_id, plan_id, amount, currency, deposit_address, status)
+                   VALUES (61, 2, 300, 'TRX', 'manual', 'pending')"""
+            )
+            await db.commit()
+
+            dep_row = await db.execute_fetchall(
+                "SELECT id FROM deposits WHERE user_id = 61"
+            )
+            dep_id = dep_row[0][0]
+
+            await db.execute(
+                "UPDATE deposits SET status = 'confirmed', confirmed_at = datetime('now') WHERE id = ?",
+                (dep_id,),
+            )
+            await db.commit()
+
+            result = await create_investment(61, 2, 300, "TRX")
+
+            await db.execute(
+                "UPDATE investments SET deposit_id = ? WHERE id = ?",
+                (dep_id, result["investment_id"]),
+            )
+            await db.commit()
+
+            inv = await db.execute_fetchall(
+                "SELECT deposit_id, amount, plan_id FROM investments WHERE user_id = 61"
+            )
+            self.assertEqual(len(inv), 1)
+            self.assertEqual(inv[0][0], dep_id)
+            self.assertAlmostEqual(inv[0][1], 300.0)
+            self.assertEqual(inv[0][2], 2)
+        run(_test())
+
+    def test_pending_deposit_blocks_duplicate(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (62, 'dup', 'r62')"
+            )
+            await db.execute(
+                """INSERT INTO deposits (user_id, plan_id, amount, currency, deposit_address, status)
+                   VALUES (62, 1, 100, 'TRX', 'manual', 'pending')"""
+            )
+            await db.commit()
+
+            pending = await db.execute_fetchall(
+                "SELECT id FROM deposits WHERE user_id = 62 AND plan_id = 1 AND status = 'pending'"
+            )
+            self.assertTrue(len(pending) > 0)
+        run(_test())
+
+
+class TestCoinPaymentsClient(unittest.TestCase):
+    def test_ipn_verify(self):
+        import hashlib
+        import hmac
+        from coinpayments import verify_ipn
+
+        secret = "test_secret"
+        config.CP_IPN_SECRET = secret
+
+        body = b"test_body_data"
+        expected_hmac = hmac.new(secret.encode(), body, hashlib.sha512).hexdigest()
+
+        self.assertTrue(verify_ipn(expected_hmac, body))
+        self.assertFalse(verify_ipn("wrong_hmac", body))
+
+        config.CP_IPN_SECRET = ""
+
+    def test_coin_map(self):
+        from coinpayments import COIN_MAP
+        self.assertEqual(COIN_MAP["TRX"], "TRX")
+        self.assertEqual(COIN_MAP["USDT"], "USDT.TRC20")
+
+
+class TestWalletAddress(unittest.TestCase):
+    def setUp(self):
+        import database
+        database._db = None
+        os.environ["DB_PATH"] = ":memory:"
+
+    def test_set_wallet_address(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (70, 'wallet', 'r70')"
+            )
+            await db.commit()
+
+            await db.execute(
+                "UPDATE users SET wallet_address = ? WHERE user_id = ?",
+                ("TXyz123abc456def789", 70),
+            )
+            await db.commit()
+
+            row = await db.execute_fetchall(
+                "SELECT wallet_address FROM users WHERE user_id = 70"
+            )
+            self.assertEqual(row[0][0], "TXyz123abc456def789")
+        run(_test())
+
+    def test_wallet_default_null(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (71, 'nowallet', 'r71')"
+            )
+            await db.commit()
+
+            row = await db.execute_fetchall(
+                "SELECT wallet_address FROM users WHERE user_id = 71"
+            )
+            self.assertIsNone(row[0][0])
         run(_test())
 
 

@@ -12,6 +12,14 @@ ADMIN_USER_IDS = [
 
 DB_PATH = os.getenv("DB_PATH", "kimielbot.db")
 
+# CoinPayments
+CP_PUBLIC_KEY = os.getenv("CP_PUBLIC_KEY", "")
+CP_PRIVATE_KEY = os.getenv("CP_PRIVATE_KEY", "")
+CP_IPN_SECRET = os.getenv("CP_IPN_SECRET", "")
+CP_MERCHANT_ID = os.getenv("CP_MERCHANT_ID", "")
+IPN_URL = os.getenv("IPN_URL", "")
+WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "8080"))
+
 PLANS = {
     1: {
         "name": "Plan 1",
@@ -64,3 +72,5 @@ REFERRAL_ON_PROFIT = True
 MAX_ACTIVE_PLANS_PER_USER = 3
 
 SUPPORTED_CURRENCIES = ["TRX", "USDT"]
+
+DEPOSIT_TIMEOUT_HOURS = 6
