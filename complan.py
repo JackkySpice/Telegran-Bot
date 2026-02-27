@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import config
-from database import get_db
+from database import get_db, get_setting
 
 
 def calculate_profit(plan_id: int, amount: float) -> dict:
@@ -55,6 +55,13 @@ def validate_amount(plan_id: int, amount: float) -> str | None:
     return None
 
 
+def calculate_withdrawal_fee(amount: float) -> tuple[float, float]:
+    """Return (fee, net_amount) after applying the withdrawal charge."""
+    fee = round(amount * (config.WITHDRAWAL_FEE_PCT / 100.0), 6)
+    net = round(amount - fee, 6)
+    return fee, net
+
+
 async def can_user_invest(user_id: int, plan_id: int) -> tuple[bool, str]:
     """Check plan rules: max 3 active plans, only 1 active per plan_id."""
     db = await get_db()
@@ -79,7 +86,7 @@ async def can_user_invest(user_id: int, plan_id: int) -> tuple[bool, str]:
 
 
 async def create_investment(user_id: int, plan_id: int, amount: float, currency: str = "TRX") -> dict:
-    """Create an investment record and distribute referral commissions."""
+    """Create an investment record. Referral commissions are deferred to payout time when REFERRAL_ON_PROFIT is True."""
     db = await get_db()
     details = calculate_profit(plan_id, amount)
 
@@ -104,23 +111,22 @@ async def create_investment(user_id: int, plan_id: int, amount: float, currency:
     )
     await db.commit()
 
-    row = await db.execute_fetchall(
-        "SELECT last_insert_rowid()"
-    )
+    row = await db.execute_fetchall("SELECT last_insert_rowid()")
     investment_id = row[0][0]
 
-    await distribute_referral_commissions(user_id, investment_id, amount, currency)
+    if not config.REFERRAL_ON_PROFIT:
+        await _distribute_referral_on_deposit(user_id, investment_id, amount, currency)
 
     return {**details, "investment_id": investment_id, "currency": currency}
 
 
-async def distribute_referral_commissions(
+async def _distribute_referral_on_deposit(
     investor_id: int,
     investment_id: int,
     amount: float,
     currency: str,
 ):
-    """Walk upline up to 5 levels and credit referral commissions."""
+    """Walk upline up to N levels and credit referral commissions on deposit amount."""
     db = await get_db()
     current_id = investor_id
 
@@ -154,8 +160,63 @@ async def distribute_referral_commissions(
     await db.commit()
 
 
+async def distribute_referral_on_profit(
+    investor_id: int,
+    investment_id: int,
+    profit_credited: float,
+    currency: str,
+):
+    """Walk upline up to N levels and credit referral commissions on profit earned."""
+    db = await get_db()
+    current_id = investor_id
+
+    for level in range(1, len(config.REFERRAL_LEVELS) + 1):
+        row = await db.execute_fetchall(
+            "SELECT referred_by FROM users WHERE user_id = ?",
+            (current_id,),
+        )
+        if not row or row[0][0] is None:
+            break
+
+        referrer_id = row[0][0]
+        pct = config.REFERRAL_LEVELS[level]
+        commission = round(profit_credited * (pct / 100.0), 6)
+
+        if commission <= 0:
+            current_id = referrer_id
+            continue
+
+        await db.execute(
+            """INSERT INTO referral_earnings
+               (user_id, from_user_id, investment_id, level, pct, amount, currency)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (referrer_id, investor_id, investment_id, level, pct, commission, currency),
+        )
+
+        balance_col = "balance_trx" if currency == "TRX" else "balance_usdt"
+        await db.execute(
+            f"UPDATE users SET {balance_col} = {balance_col} + ? WHERE user_id = ?",
+            (commission, referrer_id),
+        )
+
+        current_id = referrer_id
+
+    await db.commit()
+
+
+async def are_payouts_paused() -> bool:
+    return (await get_setting("payouts_paused", "0")) == "1"
+
+
 async def process_daily_earnings():
-    """Credit daily profit to users with active investments (call via scheduler)."""
+    """Credit daily profit to users with active investments.
+
+    Skips if payouts are paused by admin (e.g. no trading profit this cycle).
+    When REFERRAL_ON_PROFIT is True, referral commissions are distributed here.
+    """
+    if await are_payouts_paused():
+        return 0
+
     db = await get_db()
     now = datetime.now(timezone.utc).isoformat()
 
@@ -166,6 +227,7 @@ async def process_daily_earnings():
         (now,),
     )
 
+    credited_count = 0
     for row in rows:
         inv_id, user_id, daily_profit, earned, total, currency = row
         new_earned = min(earned + daily_profit, total)
@@ -184,13 +246,19 @@ async def process_daily_earnings():
             (new_earned, inv_id),
         )
 
+        if config.REFERRAL_ON_PROFIT:
+            await distribute_referral_on_profit(user_id, inv_id, credit, currency)
+
         if new_earned >= total:
             await db.execute(
                 "UPDATE investments SET status = 'completed' WHERE id = ?",
                 (inv_id,),
             )
 
+        credited_count += 1
+
     await db.commit()
+    return credited_count
 
 
 async def get_user_portfolio(user_id: int) -> list[dict]:

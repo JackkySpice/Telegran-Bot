@@ -69,12 +69,21 @@ async def _init_tables(db: aiosqlite.Connection):
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id       INTEGER NOT NULL REFERENCES users(user_id),
             amount        REAL NOT NULL,
+            fee           REAL NOT NULL DEFAULT 0.0,
+            net_amount    REAL NOT NULL DEFAULT 0.0,
             currency      TEXT NOT NULL DEFAULT 'TRX',
             wallet_address TEXT,
             status        TEXT NOT NULL DEFAULT 'pending',
             created_at    TEXT DEFAULT (datetime('now')),
             processed_at  TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        INSERT OR IGNORE INTO settings (key, value) VALUES ('payouts_paused', '0');
 
         CREATE INDEX IF NOT EXISTS idx_investments_user
             ON investments(user_id);
@@ -85,4 +94,21 @@ async def _init_tables(db: aiosqlite.Connection):
         CREATE INDEX IF NOT EXISTS idx_withdrawals_user
             ON withdrawals(user_id);
     """)
+    await db.commit()
+
+
+async def get_setting(key: str, default: str = "") -> str:
+    db = await get_db()
+    row = await db.execute_fetchall(
+        "SELECT value FROM settings WHERE key = ?", (key,)
+    )
+    return row[0][0] if row else default
+
+
+async def set_setting(key: str, value: str):
+    db = await get_db()
+    await db.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+        (key, value),
+    )
     await db.commit()

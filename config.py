@@ -41,6 +41,16 @@ PLANS = {
 
 MIN_WITHDRAWAL = 30  # TRX
 
+WITHDRAWAL_FEE_PCT = 5.0
+
+PAYOUT_DAY = "Sunday"
+
+PROFIT_SPLIT = {
+    "users": 70.0,
+    "reserve": 20.0,
+    "team": 10.0,
+}
+
 REFERRAL_LEVELS = {
     1: 3.0,
     2: 1.0,
@@ -48,6 +58,8 @@ REFERRAL_LEVELS = {
     4: 1.0,
     5: 1.0,
 }
+
+REFERRAL_ON_PROFIT = True
 
 MAX_ACTIVE_PLANS_PER_USER = 3
 

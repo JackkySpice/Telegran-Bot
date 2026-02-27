@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 import config
+from complan import calculate_withdrawal_fee
 from database import get_db
 
 
@@ -18,28 +19,35 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT balance_trx, balance_usdt FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Register ka muna gamit /start.")
+        await update.message.reply_text("Register ka muna: /start")
         return
 
     trx, usdt = row[0]
-    text = (
-        f"Balance mo:\n\n"
-        f"TRX:  {trx:.4f}\n"
+    await update.message.reply_text(
+        f"Balance mo:\n"
+        f"TRX: {trx:.4f}\n"
         f"USDT: {usdt:.4f}\n\n"
-        f"Minimum withdrawal: {config.MIN_WITHDRAWAL} TRX\n"
-        "Para mag-withdraw: /withdraw <amount> [TRX/USDT]"
+        f"Min withdrawal: {config.MIN_WITHDRAWAL}\n"
+        f"Fee: {config.WITHDRAWAL_FEE_PCT}%\n"
+        f"Schedule: Every {config.PAYOUT_DAY}"
     )
-    await update.message.reply_text(text)
 
 
 async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     db = await get_db()
 
+    now = datetime.now(timezone.utc)
+    if now.strftime("%A") != config.PAYOUT_DAY:
+        await update.message.reply_text(
+            f"Withdrawal is every {config.PAYOUT_DAY} lang. Balik ka sa {config.PAYOUT_DAY}!"
+        )
+        return
+
     if not context.args:
         await update.message.reply_text(
             "Usage: /withdraw <amount> [TRX/USDT]\n"
-            "Halimbawa: /withdraw 50 TRX"
+            "Example: /withdraw 50 TRX"
         )
         return
 
@@ -53,12 +61,12 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) >= 2:
         currency = context.args[1].upper()
         if currency not in config.SUPPORTED_CURRENCIES:
-            await update.message.reply_text("Supported currencies: TRX, USDT")
+            await update.message.reply_text("Supported: TRX, USDT")
             return
 
     if amount < config.MIN_WITHDRAWAL:
         await update.message.reply_text(
-            f"Minimum withdrawal ay {config.MIN_WITHDRAWAL} {currency}."
+            f"Minimum withdrawal: {config.MIN_WITHDRAWAL} {currency}."
         )
         return
 
@@ -68,7 +76,6 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
            ORDER BY unlocks_at ASC""",
         (user_id,),
     )
-    now = datetime.utcnow()
     all_locked = True
     for inv in active_inv:
         unlock_str = inv[1]
@@ -82,8 +89,7 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         days_left = (nearest - now).days
         await update.message.reply_text(
-            f"Lock period pa ang investments mo. "
-            f"Maa-unlock in {days_left} day(s). Balik ka ulit!"
+            f"Lock period pa. Unlock in {days_left} day(s)."
         )
         return
 
@@ -92,32 +98,35 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"SELECT {balance_col} FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Register ka muna gamit /start.")
+        await update.message.reply_text("Register ka muna: /start")
         return
 
     current_balance = row[0][0]
     if amount > current_balance:
         await update.message.reply_text(
-            f"Hindi enough ang balance mo. Meron ka lang {current_balance:.4f} {currency}."
+            f"Hindi enough. Balance mo: {current_balance:.4f} {currency}."
         )
         return
+
+    fee, net = calculate_withdrawal_fee(amount)
 
     await db.execute(
         f"UPDATE users SET {balance_col} = {balance_col} - ? WHERE user_id = ?",
         (amount, user_id),
     )
     await db.execute(
-        """INSERT INTO withdrawals (user_id, amount, currency, status)
-           VALUES (?, ?, ?, 'pending')""",
-        (user_id, amount, currency),
+        """INSERT INTO withdrawals (user_id, amount, fee, net_amount, currency, status)
+           VALUES (?, ?, ?, ?, ?, 'pending')""",
+        (user_id, amount, fee, net, currency),
     )
     await db.commit()
 
     await update.message.reply_text(
-        f"Withdrawal request submitted! 🎉\n\n"
+        f"Withdrawal submitted! 🎉\n\n"
         f"Amount: {amount} {currency}\n"
-        "Status: Pending\n\n"
-        "I-process namin to as soon as possible. Salamat!"
+        f"Fee ({config.WITHDRAWAL_FEE_PCT}%): {fee:.4f} {currency}\n"
+        f"You receive: {net:.4f} {currency}\n"
+        "Status: Pending"
     )
 
 

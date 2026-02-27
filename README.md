@@ -1,15 +1,17 @@
 # Kimielbot
 
-Telegram bot for an automated investment platform with tiered compensation plans, referral commissions, and daily profit distribution.
+Telegram bot for an automated investment platform with tiered compensation plans, referral commissions, and weekly profit distribution.
 
 ## Features
 
 - **3 Tiered Investment Plans** with varying profit rates and lock periods
-- **5-Level Referral System** with automatic commission distribution
-- **Daily Profit Engine** for automated earnings crediting
-- **TRX & USDT Support** as payment currencies
-- **Admin Dashboard** for stats, withdrawal approval, and manual daily runs
-- **"How It Works" Explainer** built into the bot (simple, Taglish)
+- **5-Level Referral System** with commissions based on profit (not deposit)
+- **Weekly Payout Engine** (every Sunday) with admin pause/resume
+- **5% Withdrawal Fee** applied automatically
+- **Profit Split** (70% users / 20% reserve / 10% team)
+- **TRX & USDT Support**
+- **No Forced Referral** for withdrawals
+- **Admin Dashboard** with payout controls
 
 ## Investment Plans
 
@@ -19,7 +21,7 @@ Telegram bot for an automated investment platform with tiered compensation plans
 | Plan 2 | 251 - 450 TRX/USDT | 20% | After 30 days |
 | Plan 3 | 451 - 650 TRX/USDT | 22% | After 13 days |
 
-## Referral Commissions
+## Referral Commissions (on profit, not deposit)
 
 | Level | Commission |
 |-------|-----------|
@@ -35,19 +37,21 @@ Telegram bot for an automated investment platform with tiered compensation plans
 - Max 3 active plans at a time (one per tier)
 - Cannot repeat a plan until its 60-day period ends
 - Minimum withdrawal: 30 TRX
+- Withdrawal fee: 5%
+- Withdrawal schedule: Every Sunday
+- No invite required to withdraw
 
 ## Setup
 
-1. Clone the repo
-2. Install dependencies:
+1. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Copy `.env.example` to `.env` and fill in:
+2. Copy `.env.example` to `.env` and fill in your bot token:
    ```bash
    cp .env.example .env
    ```
-4. Run the bot:
+3. Run the bot:
    ```bash
    python bot.py
    ```
@@ -55,41 +59,19 @@ Telegram bot for an automated investment platform with tiered compensation plans
 ## Commands
 
 ### User Commands
-- `/start` - Register and see the main menu
+- `/start` - Register
 - `/plans` - View investment plans
-- `/invest <plan> <amount> [TRX/USDT]` - Make an investment
-- `/portfolio` - Check investment status
-- `/balance` - View your balance
-- `/withdraw <amount> [TRX/USDT]` - Request a withdrawal
-- `/referral` - Get your referral link and stats
-- `/howitworks` - How the platform works
-- `/help` - List all commands
+- `/invest <plan> <amount> [TRX/USDT]` - Invest
+- `/portfolio` - Check investments
+- `/balance` - View balance
+- `/withdraw <amount> [TRX/USDT]` - Withdraw (Sundays only)
+- `/referral` - Referral link and stats
+- `/howitworks` - How it works
 
 ### Admin Commands
-- `/adminstats` - Platform statistics
-- `/dailyrun` - Manually trigger daily earnings
+- `/adminstats` - Dashboard
+- `/dailyrun` - Trigger daily earnings
+- `/pausepayouts` - Pause payouts (no trading profit)
+- `/resumepayouts` - Resume payouts
 - `/pending` - List pending withdrawals
 - `/approve <id>` - Approve a withdrawal
-- `/shutdown` - Stop the bot
-
-## Project Structure
-
-```
-kimielbot/
-├── bot.py              # Main entry point
-├── config.py           # Plans, referral levels, settings
-├── database.py         # SQLite setup and connection
-├── complan.py          # Compensation plan engine
-├── handlers/
-│   ├── __init__.py     # Handler registration
-│   ├── start.py        # /start, /help
-│   ├── invest.py       # /plans, /invest
-│   ├── withdraw.py     # /balance, /withdraw
-│   ├── referral.py     # /referral
-│   ├── info.py         # /howitworks, /portfolio
-│   └── admin.py        # Admin commands
-├── requirements.txt
-├── .env.example
-└── tests/
-    └── test_complan.py
-```

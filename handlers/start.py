@@ -42,38 +42,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ref_code = row[0][0]
     bot_username = (await context.bot.get_me()).username
 
-    text = (
-        f"Kumusta {user.first_name}! Welcome to Kimielbot! 🫶\n\n"
-        "Dito mo makikita ang lahat ng kailangan mo para mag-invest at kumita.\n\n"
-        "Commands:\n"
-        "/plans - Tignan ang investment plans\n"
+    await update.message.reply_text(
+        f"Welcome {user.first_name}! 🫶\n\n"
+        "/plans - Investment plans\n"
         "/invest - Mag-invest\n"
-        "/portfolio - Status ng investments mo\n"
-        "/balance - Tignan ang balance mo\n"
+        "/portfolio - Status\n"
+        "/balance - Balance mo\n"
         "/withdraw - Mag-withdraw\n"
-        "/referral - Referral link at stats mo\n"
-        "/howitworks - Pano ba to gumagana?\n"
-        "/help - Listahan ng commands\n\n"
-        f"Referral link mo:\nhttps://t.me/{bot_username}?start={ref_code}"
+        "/referral - Referral link\n"
+        "/howitworks - Pano to?\n\n"
+        f"Referral link:\nhttps://t.me/{bot_username}?start={ref_code}"
     )
-    await update.message.reply_text(text)
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "Kimielbot Commands:\n\n"
-        "/start - Register / Main menu\n"
-        "/plans - Tignan ang 3 investment plans\n"
-        "/invest <plan> <amount> [currency] - Mag-invest\n"
-        "   Halimbawa: /invest 1 100 TRX\n"
-        "/portfolio - Lahat ng investments mo\n"
-        "/balance - Current balance mo\n"
-        "/withdraw <amount> [currency] - Mag-withdraw\n"
-        "/referral - Referral link at earnings\n"
-        "/howitworks - Paano gumagana ang system\n"
-        "/help - Ito na to haha"
+    await update.message.reply_text(
+        "Commands:\n"
+        "/start - Register\n"
+        "/plans - Plans\n"
+        "/invest <plan> <amount> [TRX/USDT]\n"
+        "/portfolio - Investments\n"
+        "/balance - Balance\n"
+        "/withdraw <amount> [TRX/USDT]\n"
+        "/referral - Referral info\n"
+        "/howitworks - How it works"
     )
-    await update.message.reply_text(text)
 
 
 def register(app):

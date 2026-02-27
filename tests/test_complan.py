@@ -11,17 +11,18 @@ os.environ["DB_PATH"] = ":memory:"
 
 import config
 from complan import (
+    are_payouts_paused,
     calculate_profit,
+    calculate_withdrawal_fee,
     can_user_invest,
     create_investment,
-    distribute_referral_commissions,
     get_plan_for_amount,
     get_referral_stats,
     get_user_portfolio,
     process_daily_earnings,
     validate_amount,
 )
-from database import get_db
+from database import get_db, set_setting
 
 
 def run(coro):
@@ -76,6 +77,18 @@ class TestValidateAmount(unittest.TestCase):
 
     def test_invalid_plan(self):
         self.assertIsNotNone(validate_amount(99, 100))
+
+
+class TestWithdrawalFee(unittest.TestCase):
+    def test_fee_calculation(self):
+        fee, net = calculate_withdrawal_fee(100)
+        self.assertAlmostEqual(fee, 5.0, places=4)
+        self.assertAlmostEqual(net, 95.0, places=4)
+
+    def test_fee_small_amount(self):
+        fee, net = calculate_withdrawal_fee(30)
+        self.assertAlmostEqual(fee, 1.5, places=4)
+        self.assertAlmostEqual(net, 28.5, places=4)
 
 
 class TestInvestmentRules(unittest.TestCase):
@@ -137,13 +150,15 @@ class TestInvestmentRules(unittest.TestCase):
         run(_test())
 
 
-class TestReferralCommissions(unittest.TestCase):
+class TestReferralOnProfit(unittest.TestCase):
+    """With REFERRAL_ON_PROFIT=True, commissions are credited during daily earnings, not at investment time."""
+
     def setUp(self):
         import database
         database._db = None
         os.environ["DB_PATH"] = ":memory:"
 
-    def test_level1_commission(self):
+    def test_no_referral_at_invest_time(self):
         async def _test():
             db = await get_db()
             await db.execute(
@@ -154,19 +169,40 @@ class TestReferralCommissions(unittest.TestCase):
             )
             await db.commit()
 
+            self.assertTrue(config.REFERRAL_ON_PROFIT)
             await create_investment(11, 1, 200, "TRX")
 
             stats = await get_referral_stats(10)
-            expected = 200 * 0.03
-            self.assertAlmostEqual(stats["grand_total"], expected, places=4)
+            self.assertAlmostEqual(stats["grand_total"], 0, places=4)
 
             row = await db.execute_fetchall(
                 "SELECT balance_trx FROM users WHERE user_id = 10"
             )
-            self.assertAlmostEqual(row[0][0], expected, places=4)
+            self.assertAlmostEqual(row[0][0], 0.0, places=4)
         run(_test())
 
-    def test_multilevel_commission(self):
+    def test_referral_credited_on_daily_earnings(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (12, 'ref', 'ref12')"
+            )
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code, referred_by) VALUES (13, 'inv', 'ref13', 12)"
+            )
+            await db.commit()
+
+            await create_investment(13, 1, 200, "TRX")
+            await process_daily_earnings()
+
+            daily_profit = 200 * 0.18 / 60
+            expected_commission = daily_profit * 0.03
+
+            stats = await get_referral_stats(12)
+            self.assertAlmostEqual(stats["grand_total"], expected_commission, places=4)
+        run(_test())
+
+    def test_multilevel_on_profit(self):
         async def _test():
             db = await get_db()
             await db.execute(
@@ -181,12 +217,68 @@ class TestReferralCommissions(unittest.TestCase):
             await db.commit()
 
             await create_investment(22, 2, 300, "TRX")
+            await process_daily_earnings()
+
+            daily_profit = 300 * 0.20 / 60
 
             stats_l1 = await get_referral_stats(21)
-            self.assertAlmostEqual(stats_l1["grand_total"], 300 * 0.03, places=4)
+            self.assertAlmostEqual(stats_l1["grand_total"], daily_profit * 0.03, places=4)
 
             stats_l2 = await get_referral_stats(20)
-            self.assertAlmostEqual(stats_l2["grand_total"], 300 * 0.01, places=4)
+            self.assertAlmostEqual(stats_l2["grand_total"], daily_profit * 0.01, places=4)
+        run(_test())
+
+
+class TestPayoutPause(unittest.TestCase):
+    def setUp(self):
+        import database
+        database._db = None
+        os.environ["DB_PATH"] = ":memory:"
+
+    def test_pause_blocks_earnings(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (50, 'paused', 'r50')"
+            )
+            await db.commit()
+            await create_investment(50, 1, 100, "TRX")
+
+            await set_setting("payouts_paused", "1")
+            self.assertTrue(await are_payouts_paused())
+
+            count = await process_daily_earnings()
+            self.assertEqual(count, 0)
+
+            row = await db.execute_fetchall(
+                "SELECT balance_trx FROM users WHERE user_id = 50"
+            )
+            self.assertAlmostEqual(row[0][0], 0.0, places=4)
+        run(_test())
+
+    def test_resume_allows_earnings(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (51, 'resumed', 'r51')"
+            )
+            await db.commit()
+            await create_investment(51, 1, 100, "TRX")
+
+            await set_setting("payouts_paused", "1")
+            await process_daily_earnings()
+
+            await set_setting("payouts_paused", "0")
+            self.assertFalse(await are_payouts_paused())
+
+            count = await process_daily_earnings()
+            self.assertEqual(count, 1)
+
+            daily = 100 * 0.18 / 60
+            row = await db.execute_fetchall(
+                "SELECT balance_trx FROM users WHERE user_id = 51"
+            )
+            self.assertAlmostEqual(row[0][0], daily, places=4)
         run(_test())
 
 
@@ -205,7 +297,6 @@ class TestDailyEarnings(unittest.TestCase):
             await db.commit()
 
             await create_investment(30, 1, 100, "TRX")
-
             await process_daily_earnings()
 
             row = await db.execute_fetchall(

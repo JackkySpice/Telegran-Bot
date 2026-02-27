@@ -11,40 +11,34 @@ from complan import get_user_portfolio
 
 HOW_IT_WORKS = """Pano gumagana ang Kimielbot? 🤔
 
-Simple lang:
 1. Pumili ka ng plan (Plan 1, 2, or 3)
 2. Mag-invest ka ng TRX or USDT
-3. Araw-araw kumikita ka (daily earnings)
-4. Pag nag-unlock na, pwede ka na mag-withdraw
+3. Araw-araw kumikita ka
+4. Every Sunday, pwede ka na mag-withdraw
 
 3 Plans:
 
 Plan 1 (50-250 TRX/USDT)
-- 18% profit sa 60 days
-- Pwede mag-withdraw after 40 days
+18% profit sa 60 days, unlock after 40 days
 
 Plan 2 (251-450 TRX/USDT)
-- 20% profit sa 60 days
-- Pwede mag-withdraw after 30 days
+20% profit sa 60 days, unlock after 30 days
 
 Plan 3 (451-650 TRX/USDT)
-- 22% profit sa 60 days
-- Pwede mag-withdraw after 13 days
+22% profit sa 60 days, unlock after 13 days
 
-Mas malaki investment mo, mas mataas yung profit percentage at mas mabilis mag-unlock.
+Referral Bonus (optional, hindi required):
+Level 1: 3% | Level 2-5: 1% each
+Based sa profit, hindi sa deposit.
 
-Referral Bonus:
-Level 1: 3% ng investment ng invite mo
-Level 2-5: 1% each
+Withdrawal: Every Sunday, 5% fee, min 30 TRX.
 
-Mga rules:
-- 1 lang na active per plan (pwede ka mag Plan 1, Plan 2, at Plan 3 nang sabay)
-- Hindi pwede ulitin ang plan hanggang di pa tapos ang 60 days
-- Minimum withdrawal: 30 TRX
+Rules:
+- 1 active per plan, max 3 sabay-sabay
+- Hindi pwede ulitin hanggang di tapos ang 60 days
+- Kahit walang invite, maka-withdraw ka
 
-Basically, you earn when we earn. Safe ang capital mo. 💪
-
-Questions? Chat lang kayo dito!"""
+You earn when we earn. Capital mo, safe. 💪"""
 
 
 async def howitworks(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -56,12 +50,10 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     investments = await get_user_portfolio(user_id)
 
     if not investments:
-        await update.message.reply_text(
-            "Wala ka pang investment. Check /plans para makita ang options!"
-        )
+        await update.message.reply_text("Wala ka pang investment. /plans")
         return
 
-    lines = ["Your Investments:\n"]
+    lines = ["Investments mo:\n"]
     for inv in investments:
         plan = config.PLANS.get(inv["plan_id"], {})
         pct_done = (
@@ -69,16 +61,11 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if inv["total_profit"] > 0
             else 0
         )
-        status_emoji = "🟢" if inv["status"] == "active" else "✅"
+        emoji = "🟢" if inv["status"] == "active" else "✅"
         lines.append(
-            f"{status_emoji} {plan.get('name', 'Plan ?')} | "
-            f"{inv['amount']} {inv['currency']}\n"
-            f"   Earned: {inv['earned_so_far']:.4f} / {inv['total_profit']:.4f} "
-            f"({pct_done:.1f}%)\n"
-            f"   Daily: {inv['daily_profit']:.4f} {inv['currency']}\n"
-            f"   Unlock: {inv['unlocks_at'][:10]} | "
-            f"Expires: {inv['expires_at'][:10]}\n"
-            f"   Status: {inv['status']}\n"
+            f"{emoji} {plan.get('name', '?')} | {inv['amount']} {inv['currency']}\n"
+            f"  Earned: {inv['earned_so_far']:.4f}/{inv['total_profit']:.4f} ({pct_done:.1f}%)\n"
+            f"  Unlock: {inv['unlocks_at'][:10]} | End: {inv['expires_at'][:10]}"
         )
 
     await update.message.reply_text("\n".join(lines))

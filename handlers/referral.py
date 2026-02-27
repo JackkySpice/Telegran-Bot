@@ -18,7 +18,7 @@ async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT referral_code FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Register ka muna gamit /start.")
+        await update.message.reply_text("Register: /start")
         return
 
     ref_code = row[0][0]
@@ -32,25 +32,21 @@ async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     stats = await get_referral_stats(user_id)
 
+    basis = "profit" if config.REFERRAL_ON_PROFIT else "deposit"
     lines = [
-        "Referral Info:\n",
-        f"Link mo: {link}\n",
-        f"Direct referrals: {direct}\n",
-        "Referral commissions:\n",
+        f"Referral link: {link}\n",
+        f"Direct referrals: {direct}",
+        f"Commission basis: {basis}\n",
     ]
 
     for level, pct in config.REFERRAL_LEVELS.items():
         lvl_data = stats["levels"].get(level, {"total": 0, "count": 0})
         lines.append(
-            f"  Level {level} ({pct}%): {lvl_data['total']:.4f} TRX "
-            f"({lvl_data['count']} transactions)"
+            f"L{level} ({pct}%): {lvl_data['total']:.4f} ({lvl_data['count']}x)"
         )
 
-    lines.append(f"\nTotal earnings: {stats['grand_total']:.4f} TRX")
-    lines.append(
-        "\nShare mo lang yung link sa friends mo. "
-        "Pag nag-invest sila, kumikita ka agad!"
-    )
+    lines.append(f"\nTotal: {stats['grand_total']:.4f}")
+    lines.append("Optional lang mag-invite, hindi required para mag-withdraw.")
 
     await update.message.reply_text("\n".join(lines))
 
