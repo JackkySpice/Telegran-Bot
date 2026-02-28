@@ -165,8 +165,12 @@ async def distribute_referral_on_profit(
     investment_id: int,
     profit_credited: float,
     currency: str,
+    _commit: bool = True,
 ):
-    """Walk upline up to N levels and credit referral commissions on profit earned."""
+    """Walk upline up to N levels and credit referral commissions on profit earned.
+
+    When called from process_daily_earnings, _commit=False to avoid mid-loop commits.
+    """
     db = await get_db()
     current_id = investor_id
 
@@ -201,7 +205,8 @@ async def distribute_referral_on_profit(
 
         current_id = referrer_id
 
-    await db.commit()
+    if _commit:
+        await db.commit()
 
 
 async def are_payouts_paused() -> bool:
@@ -247,7 +252,7 @@ async def process_daily_earnings():
         )
 
         if config.REFERRAL_ON_PROFIT:
-            await distribute_referral_on_profit(user_id, inv_id, credit, currency)
+            await distribute_referral_on_profit(user_id, inv_id, credit, currency, _commit=False)
 
         if new_earned >= total:
             await db.execute(

@@ -40,6 +40,7 @@ Rules:
 - 1 active per plan, max 3 sabay-sabay
 - Hindi pwede ulitin hanggang di tapos ang 60 days
 - Kahit walang invite, maka-withdraw ka
+- Pag kulang ang binayad mo, hindi ma-aactivate. Contact admin.
 
 You earn when we earn. Capital mo, safe. 💪"""
 

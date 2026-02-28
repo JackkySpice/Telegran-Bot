@@ -14,7 +14,6 @@ import config
 from coinpayments import (
     IPN_STATUS_CANCELLED,
     IPN_STATUS_COMPLETE,
-    IPN_STATUS_CONFIRMED,
     verify_ipn,
 )
 from complan import create_investment
@@ -23,6 +22,8 @@ from database import get_db
 logger = logging.getLogger(__name__)
 
 _bot_app = None
+
+UNDERPAY_TOLERANCE = 0.02
 
 
 def set_bot_app(app):
@@ -56,13 +57,13 @@ async def handle_ipn(request: web.Request) -> web.Response:
     txn_id = data.get("txn_id", "")
     status = int(data.get("status", "0"))
     status_text = data.get("status_text", "")
-    amount = float(data.get("amount1", "0"))
+    received_amount = float(data.get("amount1", "0"))
     currency = data.get("currency1", "")
     custom = data.get("custom", "")
 
     logger.info(
-        "IPN: txn=%s status=%s (%s) amount=%s %s custom=%s",
-        txn_id, status, status_text, amount, currency, custom,
+        "IPN: txn=%s status=%s (%s) received=%s %s custom=%s",
+        txn_id, status, status_text, received_amount, currency, custom,
     )
 
     db = await get_db()
@@ -100,7 +101,23 @@ async def handle_ipn(request: web.Request) -> web.Response:
     )
     await db.commit()
 
-    if status >= IPN_STATUS_COMPLETE or status == IPN_STATUS_CONFIRMED:
+    if status >= IPN_STATUS_COMPLETE:
+        if received_amount < dep_amount * (1 - UNDERPAY_TOLERANCE):
+            logger.warning(
+                "Underpayment for deposit %s: expected %s, received %s",
+                dep_id, dep_amount, received_amount,
+            )
+            await db.execute(
+                "UPDATE deposits SET status = 'underpaid' WHERE id = ?",
+                (dep_id,),
+            )
+            await db.commit()
+            await _notify_user(
+                user_id, plan_id, dep_amount, dep_currency, "underpaid",
+                received=received_amount,
+            )
+            return web.Response(text="IPN OK", status=200)
+
         await _activate_deposit(dep_id, user_id, plan_id, dep_amount, dep_currency)
         await _notify_user(user_id, plan_id, dep_amount, dep_currency, "confirmed")
 
@@ -136,7 +153,14 @@ async def _activate_deposit(dep_id: int, user_id: int, plan_id: int, amount: flo
     logger.info("Deposit %s confirmed, investment %s created", dep_id, result["investment_id"])
 
 
-async def _notify_user(user_id: int, plan_id: int, amount: float, currency: str, status: str):
+async def _notify_user(
+    user_id: int,
+    plan_id: int,
+    amount: float,
+    currency: str,
+    status: str,
+    received: float = 0,
+):
     """Send telegram notification about deposit status."""
     if not _bot_app:
         return
@@ -150,11 +174,18 @@ async def _notify_user(user_id: int, plan_id: int, amount: float, currency: str,
                 f"Profit: {plan['profit_pct']}% in {plan['duration_days']} days\n"
                 "Your investment is now active. /portfolio"
             )
+        elif status == "underpaid":
+            text = (
+                f"Kulang ang payment mo.\n"
+                f"Expected: {amount} {currency}\n"
+                f"Received: {received} {currency}\n\n"
+                "Contact admin para ma-resolve. Hindi pa na-activate ang investment."
+            )
         else:
             text = (
                 f"Deposit cancelled/expired.\n"
                 f"Plan {plan_id} | {amount} {currency}\n"
-                "Try /invest again if you want to continue."
+                "Try /invest again."
             )
 
         await _bot_app.bot.send_message(chat_id=user_id, text=text)

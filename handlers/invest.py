@@ -15,6 +15,18 @@ from database import get_db
 logger = logging.getLogger(__name__)
 
 
+async def _ensure_registered(update: Update) -> bool:
+    db = await get_db()
+    row = await db.execute_fetchall(
+        "SELECT user_id FROM users WHERE user_id = ?",
+        (update.effective_user.id,),
+    )
+    if not row:
+        await update.message.reply_text("Register ka muna: /start")
+        return False
+    return True
+
+
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = ["Investment Plans:\n"]
     for pid, p in config.PLANS.items():
@@ -32,6 +44,9 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await _ensure_registered(update):
+        return
+
     user_id = update.effective_user.id
 
     if not context.args or len(context.args) < 2:
@@ -46,6 +61,10 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = float(context.args[1])
     except ValueError:
         await update.message.reply_text("Plan at amount dapat numbers.")
+        return
+
+    if amount <= 0:
+        await update.message.reply_text("Amount dapat positive number.")
         return
 
     currency = "TRX"
@@ -76,8 +95,9 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if pending:
         await update.message.reply_text(
-            "May pending deposit ka pa for this plan. "
-            "Hintayin mo muna ma-confirm or mag-expire bago gumawa ng bago.\n\n"
+            "May pending deposit ka pa for this plan.\n"
+            f"Cancel: /canceldeposit {pending[0][0]}\n"
+            "Or hintayin mag-expire.\n\n"
             "/deposits para makita status."
         )
         return
@@ -89,7 +109,7 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"Deposit #{deposit_id} created (offline mode)\n\n"
             f"Plan {plan_id} | {amount} {currency}\n"
-            "CoinPayments not configured. Admin will confirm manually.\n\n"
+            "Admin will confirm manually.\n\n"
             "/deposits para makita status."
         )
         return
@@ -132,7 +152,6 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _create_offline_deposit(user_id: int, plan_id: int, amount: float, currency: str) -> int:
-    """Fallback for when CoinPayments is not configured. Admin confirms manually."""
     db = await get_db()
     await db.execute(
         """INSERT INTO deposits
@@ -164,7 +183,10 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = ["Your Deposits:\n"]
     for r in rows:
         dep_id, plan_id, amount, currency, status, addr, txn_id, created = r
-        emoji = {"pending": "⏳", "confirmed": "✅", "expired": "❌", "cancelled": "❌"}.get(status, "?")
+        emoji = {
+            "pending": "⏳", "confirmed": "✅", "expired": "❌",
+            "cancelled": "❌", "underpaid": "⚠️",
+        }.get(status, "?")
         lines.append(
             f"{emoji} #{dep_id} | Plan {plan_id} | {amount} {currency} | {status}\n"
             f"  {created[:16]}"
@@ -173,7 +195,49 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines))
 
 
+async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel a pending deposit: /canceldeposit <deposit_id>"""
+    user_id = update.effective_user.id
+
+    if not context.args:
+        await update.message.reply_text("Usage: /canceldeposit <deposit_id>")
+        return
+
+    try:
+        dep_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("ID dapat number.")
+        return
+
+    db = await get_db()
+    row = await db.execute_fetchall(
+        "SELECT id, user_id, status FROM deposits WHERE id = ?",
+        (dep_id,),
+    )
+
+    if not row:
+        await update.message.reply_text("Deposit not found.")
+        return
+
+    if row[0][1] != user_id:
+        await update.message.reply_text("Hindi sayo yang deposit.")
+        return
+
+    if row[0][2] != "pending":
+        await update.message.reply_text(f"Deposit status: {row[0][2]}. Hindi na pwede i-cancel.")
+        return
+
+    await db.execute(
+        "UPDATE deposits SET status = 'cancelled' WHERE id = ?",
+        (dep_id,),
+    )
+    await db.commit()
+
+    await update.message.reply_text(f"Deposit #{dep_id} cancelled.")
+
+
 def register(app):
     app.add_handler(CommandHandler("plans", plans))
     app.add_handler(CommandHandler("invest", invest))
     app.add_handler(CommandHandler("deposits", deposits))
+    app.add_handler(CommandHandler("canceldeposit", canceldeposit))
