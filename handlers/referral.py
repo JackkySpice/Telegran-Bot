@@ -8,6 +8,7 @@ from telegram.ext import CommandHandler, ContextTypes
 import config
 from complan import get_referral_stats
 from database import get_db
+from keyboards import MAIN_MENU
 
 
 async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -18,7 +19,7 @@ async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT referral_code FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Register: /start")
+        await update.message.reply_text("Register: /start", reply_markup=MAIN_MENU)
         return
 
     ref_code = row[0][0]
@@ -48,7 +49,7 @@ async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append(f"\nTotal: {stats['grand_total']:.4f}")
     lines.append("Optional lang mag-invite, hindi required para mag-withdraw.")
 
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
 
 
 def register(app):

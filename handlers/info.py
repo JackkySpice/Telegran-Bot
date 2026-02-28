@@ -7,12 +7,13 @@ from telegram.ext import CommandHandler, ContextTypes
 
 import config
 from complan import get_user_portfolio
+from keyboards import MAIN_MENU
 
 
-HOW_IT_WORKS = """Pano gumagana ang Kimielbot? 🤔
+HOW_IT_WORKS = """Pano gumagana ang Kimielbot?
 
-1. Pumili ng plan (/plans)
-2. /invest <plan> <amount> [TRX/USDT]
+1. Pumili ng plan (tap Plans)
+2. Tap Invest at sundan ang steps
 3. Send crypto sa address na ibibigay ng bot
 4. Pag confirmed na yung payment, automatic na mag-start ang investment mo
 5. Araw-araw kumikita ka
@@ -34,7 +35,7 @@ Level 1: 3% | Level 2-5: 1% each
 Based sa profit, hindi sa deposit.
 
 Withdrawal: Every Sunday, 5% fee, min 30 TRX.
-Set wallet first: /setwallet <TRX_address>
+Set wallet first via Wallet button.
 
 Rules:
 - 1 active per plan, max 3 sabay-sabay
@@ -42,11 +43,11 @@ Rules:
 - Kahit walang invite, maka-withdraw ka
 - Pag kulang ang binayad mo, hindi ma-aactivate. Contact admin.
 
-You earn when we earn. Capital mo, safe. 💪"""
+You earn when we earn. Capital mo, safe."""
 
 
 async def howitworks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(HOW_IT_WORKS)
+    await update.message.reply_text(HOW_IT_WORKS, reply_markup=MAIN_MENU)
 
 
 async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -54,7 +55,10 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     investments = await get_user_portfolio(user_id)
 
     if not investments:
-        await update.message.reply_text("Wala ka pang investment. /plans")
+        await update.message.reply_text(
+            "Wala ka pang investment. Tap Plans to see options.",
+            reply_markup=MAIN_MENU,
+        )
         return
 
     lines = ["Investments mo:\n"]
@@ -73,7 +77,7 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"  Unlock: {inv['unlocks_at'][:10]} | End: {inv['expires_at'][:10]}"
         )
 
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
 
 
 def register(app):

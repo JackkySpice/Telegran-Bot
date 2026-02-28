@@ -1,18 +1,41 @@
-"""Investment handler with CoinPayments deposit flow."""
+"""Investment handler with button-driven ConversationHandler and CoinPayments deposit flow."""
 
 from __future__ import annotations
 
 import logging
 
 from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import (
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 import config
 from coinpayments import CoinPaymentsError, create_transaction
 from complan import can_user_invest, validate_amount
 from database import get_db
+from keyboards import (
+    BTN_CANCEL,
+    BTN_INVEST,
+    BTN_PLAN_1,
+    BTN_PLAN_2,
+    BTN_PLAN_3,
+    BTN_TRX,
+    BTN_USDT,
+    CANCEL_ONLY,
+    CURRENCY_PICKER,
+    MAIN_MENU,
+    PLAN_PICKER,
+)
 
 logger = logging.getLogger(__name__)
+
+PICK_PLAN, ENTER_AMOUNT, PICK_CURRENCY = range(3)
+
+PLAN_TEXT_MAP = {BTN_PLAN_1: 1, BTN_PLAN_2: 2, BTN_PLAN_3: 3}
 
 
 async def _ensure_registered(update: Update) -> bool:
@@ -22,7 +45,10 @@ async def _ensure_registered(update: Update) -> bool:
         (update.effective_user.id,),
     )
     if not row:
-        await update.message.reply_text("Register ka muna: /start")
+        await update.message.reply_text(
+            "Register ka muna: press /start",
+            reply_markup=MAIN_MENU,
+        )
         return False
     return True
 
@@ -38,55 +64,86 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"\nWithdrawal: Every {config.PAYOUT_DAY}, {config.WITHDRAWAL_FEE_PCT}% fee, "
         f"min {config.MIN_WITHDRAWAL}\n"
         "1 active per plan, max 3 sabay.\n\n"
-        "/invest <plan> <amount> [TRX/USDT]"
+        "Tap 💰 Invest to start."
     )
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
 
 
-async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# --- Invest conversation ---
+
+async def invest_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not await _ensure_registered(update):
-        return
+        return ConversationHandler.END
 
-    user_id = update.effective_user.id
+    await update.message.reply_text(
+        "Choose a plan:", reply_markup=PLAN_PICKER
+    )
+    return PICK_PLAN
 
-    if not context.args or len(context.args) < 2:
+
+async def invest_pick_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text
+    plan_id = PLAN_TEXT_MAP.get(text)
+    if plan_id is None:
         await update.message.reply_text(
-            "/invest <plan> <amount> [TRX/USDT]\n"
-            "Example: /invest 1 100 TRX"
+            "Pick a plan from the buttons below:", reply_markup=PLAN_PICKER
         )
-        return
+        return PICK_PLAN
 
+    plan = config.PLANS[plan_id]
+    context.user_data["invest_plan"] = plan_id
+
+    await update.message.reply_text(
+        f"{plan['name']}: {plan['profit_pct']}% in {plan['duration_days']} days\n"
+        f"Range: {plan['min_amount']} - {plan['max_amount']}\n\n"
+        "Enter amount:",
+        reply_markup=CANCEL_ONLY,
+    )
+    return ENTER_AMOUNT
+
+
+async def invest_enter_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
-        plan_id = int(context.args[0])
-        amount = float(context.args[1])
+        amount = float(update.message.text.strip())
     except ValueError:
-        await update.message.reply_text("Plan at amount dapat numbers.")
-        return
+        await update.message.reply_text(
+            "Enter a valid number:", reply_markup=CANCEL_ONLY
+        )
+        return ENTER_AMOUNT
 
     if amount <= 0:
-        await update.message.reply_text("Amount dapat positive number.")
-        return
+        await update.message.reply_text(
+            "Amount must be positive:", reply_markup=CANCEL_ONLY
+        )
+        return ENTER_AMOUNT
 
-    currency = "TRX"
-    if len(context.args) >= 3:
-        currency = context.args[2].upper()
-        if currency not in config.SUPPORTED_CURRENCIES:
-            await update.message.reply_text("Supported: TRX, USDT")
-            return
-
-    if plan_id not in config.PLANS:
-        await update.message.reply_text("Plan 1, 2, or 3 lang.")
-        return
-
+    plan_id = context.user_data["invest_plan"]
     err = validate_amount(plan_id, amount)
     if err:
-        await update.message.reply_text(err)
-        return
+        await update.message.reply_text(f"{err}\n\nEnter amount:", reply_markup=CANCEL_ONLY)
+        return ENTER_AMOUNT
+
+    context.user_data["invest_amount"] = amount
+    await update.message.reply_text("Choose currency:", reply_markup=CURRENCY_PICKER)
+    return PICK_CURRENCY
+
+
+async def invest_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    currency = update.message.text.strip().upper()
+    if currency not in config.SUPPORTED_CURRENCIES:
+        await update.message.reply_text(
+            "Pick TRX or USDT:", reply_markup=CURRENCY_PICKER
+        )
+        return PICK_CURRENCY
+
+    plan_id = context.user_data["invest_plan"]
+    amount = context.user_data["invest_amount"]
+    user_id = update.effective_user.id
 
     allowed, reason = await can_user_invest(user_id, plan_id)
     if not allowed:
-        await update.message.reply_text(reason)
-        return
+        await update.message.reply_text(reason, reply_markup=MAIN_MENU)
+        return ConversationHandler.END
 
     db = await get_db()
     pending = await db.execute_fetchall(
@@ -97,10 +154,10 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "May pending deposit ka pa for this plan.\n"
             f"Cancel: /canceldeposit {pending[0][0]}\n"
-            "Or hintayin mag-expire.\n\n"
-            "/deposits para makita status."
+            "Or hintayin mag-expire.",
+            reply_markup=MAIN_MENU,
         )
-        return
+        return ConversationHandler.END
 
     custom_data = f"{user_id}|{plan_id}"
 
@@ -109,10 +166,10 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"Deposit #{deposit_id} created (offline mode)\n\n"
             f"Plan {plan_id} | {amount} {currency}\n"
-            "Admin will confirm manually.\n\n"
-            "/deposits para makita status."
+            "Admin will confirm manually.",
+            reply_markup=MAIN_MENU,
         )
-        return
+        return ConversationHandler.END
 
     try:
         tx = await create_transaction(
@@ -124,9 +181,10 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except CoinPaymentsError as e:
         logger.error("CoinPayments error: %s", e)
         await update.message.reply_text(
-            "Payment system error. Try again later or contact admin."
+            "Payment system error. Try again later.",
+            reply_markup=MAIN_MENU,
         )
-        return
+        return ConversationHandler.END
 
     await db.execute(
         """INSERT INTO deposits
@@ -145,10 +203,18 @@ async def invest(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Plan: {plan['name']} ({plan['profit_pct']}% in {plan['duration_days']} days)\n"
         f"TXN: {tx['txn_id']}\n"
         f"Expires in {timeout_hrs} hours.\n\n"
-        "Investment starts once payment is confirmed.\n"
-        "/deposits para makita status.",
+        "Investment starts once payment is confirmed.",
         parse_mode="Markdown",
+        reply_markup=MAIN_MENU,
     )
+    return ConversationHandler.END
+
+
+async def invest_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.pop("invest_plan", None)
+    context.user_data.pop("invest_amount", None)
+    await update.message.reply_text("Cancelled.", reply_markup=MAIN_MENU)
+    return ConversationHandler.END
 
 
 async def _create_offline_deposit(user_id: int, plan_id: int, amount: float, currency: str) -> int:
@@ -165,7 +231,6 @@ async def _create_offline_deposit(user_id: int, plan_id: int, amount: float, cur
 
 
 async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show user's pending and recent deposits."""
     user_id = update.effective_user.id
     db = await get_db()
 
@@ -177,7 +242,10 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if not rows:
-        await update.message.reply_text("No deposits yet. /invest para mag-start.")
+        await update.message.reply_text(
+            "No deposits yet. Tap 💰 Invest to start.",
+            reply_markup=MAIN_MENU,
+        )
         return
 
     lines = ["Your Deposits:\n"]
@@ -195,21 +263,23 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
             line += f"\n  Send to: {addr}"
         lines.append(line)
 
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
 
 
 async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancel a pending deposit: /canceldeposit <deposit_id>"""
     user_id = update.effective_user.id
 
     if not context.args:
-        await update.message.reply_text("Usage: /canceldeposit <deposit_id>")
+        await update.message.reply_text(
+            "Usage: /canceldeposit <deposit_id>",
+            reply_markup=MAIN_MENU,
+        )
         return
 
     try:
         dep_id = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("ID dapat number.")
+        await update.message.reply_text("ID dapat number.", reply_markup=MAIN_MENU)
         return
 
     db = await get_db()
@@ -219,15 +289,18 @@ async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if not row:
-        await update.message.reply_text("Deposit not found.")
+        await update.message.reply_text("Deposit not found.", reply_markup=MAIN_MENU)
         return
 
     if row[0][1] != user_id:
-        await update.message.reply_text("Hindi sayo yang deposit.")
+        await update.message.reply_text("Hindi sayo yang deposit.", reply_markup=MAIN_MENU)
         return
 
     if row[0][2] != "pending":
-        await update.message.reply_text(f"Deposit status: {row[0][2]}. Hindi na pwede i-cancel.")
+        await update.message.reply_text(
+            f"Deposit status: {row[0][2]}. Hindi na pwede i-cancel.",
+            reply_markup=MAIN_MENU,
+        )
         return
 
     await db.execute(
@@ -236,11 +309,36 @@ async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await db.commit()
 
-    await update.message.reply_text(f"Deposit #{dep_id} cancelled.")
+    await update.message.reply_text(f"Deposit #{dep_id} cancelled.", reply_markup=MAIN_MENU)
 
 
 def register(app):
+    invest_conv = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.Text([BTN_INVEST]) & ~filters.COMMAND, invest_start),
+            CommandHandler("invest", invest_start),
+        ],
+        states={
+            PICK_PLAN: [
+                MessageHandler(filters.Text([BTN_CANCEL]) & ~filters.COMMAND, invest_cancel),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, invest_pick_plan),
+            ],
+            ENTER_AMOUNT: [
+                MessageHandler(filters.Text([BTN_CANCEL]) & ~filters.COMMAND, invest_cancel),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, invest_enter_amount),
+            ],
+            PICK_CURRENCY: [
+                MessageHandler(filters.Text([BTN_CANCEL]) & ~filters.COMMAND, invest_cancel),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, invest_pick_currency),
+            ],
+        },
+        fallbacks=[
+            MessageHandler(filters.Text([BTN_CANCEL]) & ~filters.COMMAND, invest_cancel),
+            CommandHandler("cancel", invest_cancel),
+        ],
+    )
+    app.add_handler(invest_conv)
+
     app.add_handler(CommandHandler("plans", plans))
-    app.add_handler(CommandHandler("invest", invest))
     app.add_handler(CommandHandler("deposits", deposits))
     app.add_handler(CommandHandler("canceldeposit", canceldeposit))
