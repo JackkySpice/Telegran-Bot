@@ -10,7 +10,7 @@ ADMIN_USER_IDS = [
     if uid.strip()
 ]
 
-DB_PATH = os.getenv("DB_PATH", "kimielbot.db")
+DB_PATH = os.getenv("DB_PATH", "vantage.db")
 
 # CoinPayments
 CP_API_VERSION = int(os.getenv("CP_API_VERSION", "1"))  # 1 = legacy, 2 = current (recommended)

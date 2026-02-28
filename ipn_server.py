@@ -254,26 +254,29 @@ async def _notify_user(
         if status == "confirmed":
             plan = config.PLANS[plan_id]
             text = (
-                f"Payment confirmed! 🎉\n\n"
-                f"{plan['name']} | {amount} {currency}\n"
-                f"Profit: {plan['profit_pct']}% in {plan['duration_days']} days\n"
-                "Your investment is now active. /portfolio"
+                f"<b>✅ Payment Confirmed!</b>\n\n"
+                f"<b>{plan['name']}</b> | <code>{amount} {currency}</code>\n"
+                f"Profit: <code>{plan['profit_pct']}%</code> in <code>{plan['duration_days']}</code> days\n\n"
+                "Your investment is now active.\n"
+                "Tap 📈 <b>Portfolio</b> to view it."
             )
         elif status == "underpaid":
             text = (
-                f"Kulang ang payment mo.\n"
-                f"Expected: {amount} {currency}\n"
-                f"Received: {received} {currency}\n\n"
-                "Contact admin para ma-resolve."
+                f"<b>⚠️ Payment Short</b>\n\n"
+                f"Expected: <code>{amount} {currency}</code>\n"
+                f"Received: <code>{received} {currency}</code>\n\n"
+                "<i>Contact admin to resolve.</i>"
             )
         else:
             text = (
-                f"Deposit cancelled/expired.\n"
-                f"Plan {plan_id} | {amount} {currency}\n"
-                "Try /invest again."
+                f"<b>❌ Deposit Cancelled/Expired</b>\n\n"
+                f"Plan {plan_id} | <code>{amount} {currency}</code>\n\n"
+                "Tap 💰 <b>Invest</b> to try again."
             )
 
-        await _bot_app.bot.send_message(chat_id=user_id, text=text)
+        await _bot_app.bot.send_message(
+            chat_id=user_id, text=text, parse_mode="HTML"
+        )
     except Exception as e:
         logger.error("Failed to notify user %s: %s", user_id, e)
 

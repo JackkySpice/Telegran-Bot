@@ -74,12 +74,12 @@ async def can_user_invest(user_id: int, plan_id: int) -> tuple[bool, str]:
     active_plan_ids = [row[0] for row in active]
 
     if len(active_plan_ids) >= config.MAX_ACTIVE_PLANS_PER_USER:
-        return False, "May 3 active plans ka na. Hintayin mo muna matapos ang isa."
+        return False, "You already have 3 active plans. Wait for one to finish first."
 
     if plan_id in active_plan_ids:
         return False, (
-            f"May active {config.PLANS[plan_id]['name']} ka pa. "
-            "Hindi pwede ulitin hanggang di pa tapos ang 60 days."
+            f"You still have an active {config.PLANS[plan_id]['name']}. "
+            "You cannot repeat it until the 60-day cycle ends."
         )
 
     return True, ""

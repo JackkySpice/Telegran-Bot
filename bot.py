@@ -1,4 +1,4 @@
-"""Kimielbot - Telegram investment platform bot.
+"""Vantage - Telegram investment platform bot.
 
 Runs the Telegram bot with scheduled daily earnings and an IPN webhook server
 for CoinPayments payment confirmations.
@@ -93,7 +93,7 @@ def main():
     else:
         logger.info("CoinPayments not configured. Running in offline/manual mode.")
 
-    logger.info("Kimielbot starting...")
+    logger.info("Vantage bot starting...")
     app.run_polling(drop_pending_updates=True)
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 
 from telegram import Update
@@ -49,18 +50,20 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     split = config.PROFIT_SPLIT
     cp_status = "configured" if config.CP_PUBLIC_KEY else "offline"
+    payout_label = "🔴 PAUSED" if paused else "🟢 ACTIVE"
 
     await update.message.reply_text(
-        "Admin Dashboard:\n\n"
-        f"Users: {user_count}\n"
-        f"Active investments: {active_inv[0]} ({active_inv[1]:.2f})\n"
-        f"Pending deposits: {pending_dep[0]} ({pending_dep[1]:.2f})\n"
-        f"Pending withdrawals: {pending_wd[0]} ({pending_wd[1]:.2f})\n"
-        f"Referral payouts: {total_ref:.2f}\n"
-        f"Payouts: {'PAUSED' if paused else 'ACTIVE'}\n"
-        f"CoinPayments: {cp_status}\n\n"
-        f"Profit split: {split['users']}% users / "
-        f"{split['reserve']}% reserve / {split['team']}% team"
+        "<b>📊 Admin Dashboard</b>\n\n"
+        f"Users: <code>{user_count}</code>\n"
+        f"Active investments: <code>{active_inv[0]}</code> (<code>{active_inv[1]:.2f}</code>)\n"
+        f"Pending deposits: <code>{pending_dep[0]}</code> (<code>{pending_dep[1]:.2f}</code>)\n"
+        f"Pending withdrawals: <code>{pending_wd[0]}</code> (<code>{pending_wd[1]:.2f}</code>)\n"
+        f"Referral payouts: <code>{total_ref:.2f}</code>\n"
+        f"Payouts: {payout_label}\n"
+        f"CoinPayments: <code>{cp_status}</code>\n\n"
+        f"<i>Profit split: {split['users']}% users / "
+        f"{split['reserve']}% reserve / {split['team']}% team</i>",
+        parse_mode="HTML",
     )
 
 
@@ -74,26 +77,39 @@ async def trigger_daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if count == -1:
         await update.message.reply_text(
-            "Already ran today. Use /dailyrun force to override."
+            "⚠️ Already ran today. Use <code>/dailyrun force</code> to override.",
+            parse_mode="HTML",
         )
     elif count == 0 and await are_payouts_paused():
-        await update.message.reply_text("Payouts paused. /resumepayouts muna.")
+        await update.message.reply_text(
+            "⚠️ Payouts are paused. Run <code>/resumepayouts</code> first.",
+            parse_mode="HTML",
+        )
     else:
-        await update.message.reply_text(f"Done! {count} investments credited. ✅")
+        await update.message.reply_text(
+            f"✅ Done! <b>{count}</b> investments credited.",
+            parse_mode="HTML",
+        )
 
 
 async def pause_payouts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(update.effective_user.id):
         return
     await set_setting("payouts_paused", "1")
-    await update.message.reply_text("Payouts paused. Walang crediting hanggang i-resume.")
+    await update.message.reply_text(
+        "🔴 <b>Payouts paused.</b>\nNo earnings will be credited until resumed.",
+        parse_mode="HTML",
+    )
 
 
 async def resume_payouts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(update.effective_user.id):
         return
     await set_setting("payouts_paused", "0")
-    await update.message.reply_text("Payouts resumed! ✅")
+    await update.message.reply_text(
+        "🟢 <b>Payouts resumed!</b>",
+        parse_mode="HTML",
+    )
 
 
 async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -102,13 +118,16 @@ async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("Usage: /confirmdeposit <deposit_id>")
+        await update.message.reply_text(
+            "Usage: <code>/confirmdeposit &lt;deposit_id&gt;</code>",
+            parse_mode="HTML",
+        )
         return
 
     try:
         dep_id = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("ID dapat number.")
+        await update.message.reply_text("⚠️ ID must be a number.")
         return
 
     db = await get_db()
@@ -117,12 +136,15 @@ async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         (dep_id,),
     )
     if not row:
-        await update.message.reply_text("Deposit not found.")
+        await update.message.reply_text("⚠️ Deposit not found.")
         return
 
     dep = row[0]
     if dep[5] != "pending":
-        await update.message.reply_text(f"Deposit status: {dep[5]}. Hindi pending.")
+        await update.message.reply_text(
+            f"⚠️ Deposit status: <b>{html.escape(dep[5])}</b>. Not pending.",
+            parse_mode="HTML",
+        )
         return
 
     await db.execute(
@@ -140,10 +162,11 @@ async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await db.commit()
 
     await update.message.reply_text(
-        f"Deposit #{dep_id} confirmed! ✅\n"
-        f"User: {dep[1]}\n"
-        f"Investment #{result['investment_id']} created.\n"
-        f"Plan {dep[2]} | {dep[3]} {dep[4]}"
+        f"✅ <b>Deposit #{dep_id} confirmed!</b>\n\n"
+        f"User: <code>{dep[1]}</code>\n"
+        f"Investment: <code>#{result['investment_id']}</code>\n"
+        f"Plan {dep[2]} | <code>{dep[3]} {dep[4]}</code>",
+        parse_mode="HTML",
     )
 
     try:
@@ -151,11 +174,13 @@ async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=dep[1],
             text=(
-                f"Payment confirmed! 🎉\n\n"
-                f"{plan['name']} | {dep[3]} {dep[4]}\n"
-                f"Profit: {plan['profit_pct']}% in {plan['duration_days']} days\n"
-                "Your investment is now active. /portfolio"
+                f"<b>✅ Payment Confirmed!</b>\n\n"
+                f"<b>{plan['name']}</b> | <code>{dep[3]} {dep[4]}</code>\n"
+                f"Profit: <code>{plan['profit_pct']}%</code> in <code>{plan['duration_days']}</code> days\n\n"
+                "Your investment is now active.\n"
+                "Tap 📈 <b>Portfolio</b> to view it."
             ),
+            parse_mode="HTML",
         )
     except Exception as e:
         logger.error("Failed to notify user: %s", e)
@@ -174,18 +199,19 @@ async def list_pending_deposits(update: Update, context: ContextTypes.DEFAULT_TY
            WHERE d.status = 'pending' ORDER BY d.created_at ASC"""
     )
     if not rows:
-        await update.message.reply_text("No pending deposits.")
+        await update.message.reply_text("<i>No pending deposits.</i>", parse_mode="HTML")
         return
 
-    lines = ["Pending Deposits:\n"]
+    lines = ["<b>⏳ Pending Deposits</b>\n"]
     for r in rows:
+        uname = f"@{html.escape(r[2])}" if r[2] else str(r[1])
         lines.append(
-            f"#{r[0]} | @{r[2] or r[1]} | Plan {r[3]} | {r[4]} {r[5]} | {r[7][:16]}"
+            f"<code>#{r[0]}</code> | {uname} | Plan {r[3]} | <code>{r[4]} {r[5]}</code> | {r[7][:16]}"
         )
-    lines.append(f"\nTotal: {len(rows)}")
-    lines.append("/confirmdeposit <id>")
+    lines.append(f"\nTotal: <b>{len(rows)}</b>")
+    lines.append("\n<code>/confirmdeposit &lt;id&gt;</code>")
 
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
 async def approve_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -193,13 +219,16 @@ async def approve_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     if not context.args:
-        await update.message.reply_text("Usage: /approve <withdrawal_id>")
+        await update.message.reply_text(
+            "Usage: <code>/approve &lt;withdrawal_id&gt;</code>",
+            parse_mode="HTML",
+        )
         return
 
     try:
         wd_id = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("ID dapat number.")
+        await update.message.reply_text("⚠️ ID must be a number.")
         return
 
     db = await get_db()
@@ -208,11 +237,14 @@ async def approve_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE)
         (wd_id,),
     )
     if not row:
-        await update.message.reply_text("Not found.")
+        await update.message.reply_text("⚠️ Not found.")
         return
 
     if row[0][7] != "pending":
-        await update.message.reply_text(f"Status: {row[0][7]}. Hindi pending.")
+        await update.message.reply_text(
+            f"⚠️ Status: <b>{html.escape(row[0][7])}</b>. Not pending.",
+            parse_mode="HTML",
+        )
         return
 
     await db.execute(
@@ -221,11 +253,13 @@ async def approve_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     await db.commit()
 
+    wallet = html.escape(row[0][6]) if row[0][6] else "not set"
     await update.message.reply_text(
-        f"Withdrawal #{wd_id} approved! ✅\n"
-        f"User: {row[0][1]}\n"
-        f"Net: {row[0][4]} {row[0][5]}\n"
-        f"Wallet: {row[0][6] or 'not set'}"
+        f"✅ <b>Withdrawal #{wd_id} approved!</b>\n\n"
+        f"User: <code>{row[0][1]}</code>\n"
+        f"Net: <code>{row[0][4]} {row[0][5]}</code>\n"
+        f"Wallet: <code>{wallet}</code>",
+        parse_mode="HTML",
     )
 
 
@@ -241,18 +275,22 @@ async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
            WHERE w.status = 'pending' ORDER BY w.created_at ASC"""
     )
     if not rows:
-        await update.message.reply_text("No pending withdrawals.")
+        await update.message.reply_text(
+            "<i>No pending withdrawals.</i>", parse_mode="HTML"
+        )
         return
 
-    lines = ["Pending Withdrawals:\n"]
+    lines = ["<b>⏳ Pending Withdrawals</b>\n"]
     for r in rows:
+        uname = f"@{html.escape(r[2])}" if r[2] else str(r[1])
+        wallet = html.escape(r[7]) if r[7] else "no wallet"
         lines.append(
-            f"#{r[0]} | @{r[2] or r[1]} | {r[5]} {r[6]} | {r[7] or 'no wallet'}"
+            f"<code>#{r[0]}</code> | {uname} | <code>{r[5]} {r[6]}</code> | <code>{wallet}</code>"
         )
-    lines.append(f"\nTotal: {len(rows)}")
-    lines.append("/approve <id>")
+    lines.append(f"\nTotal: <b>{len(rows)}</b>")
+    lines.append("\n<code>/approve &lt;id&gt;</code>")
 
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
 def register(app):
