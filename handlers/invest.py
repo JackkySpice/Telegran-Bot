@@ -1,4 +1,4 @@
-"""Investment handler with button-driven ConversationHandler and CoinPayments deposit flow."""
+"""Investment handler with button-driven ConversationHandlers and CoinPayments deposit flow."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from complan import can_user_invest, validate_amount
 from database import get_db
 from keyboards import (
     BTN_CANCEL,
+    BTN_CANCEL_DEPOSIT,
     BTN_INVEST,
     BTN_PLAN_1,
     BTN_PLAN_2,
@@ -34,6 +35,7 @@ from keyboards import (
 logger = logging.getLogger(__name__)
 
 PICK_PLAN, ENTER_AMOUNT, PICK_CURRENCY = range(3)
+CD_PICK_DEPOSIT = 0
 
 PLAN_TEXT_MAP = {BTN_PLAN_1: 1, BTN_PLAN_2: 2, BTN_PLAN_3: 3}
 
@@ -46,7 +48,7 @@ async def _ensure_registered(update: Update) -> bool:
     )
     if not row:
         await update.message.reply_text(
-            "Please register first: /start",
+            "Please register first by tapping Start.",
             reply_markup=MAIN_MENU,
         )
         return False
@@ -153,8 +155,7 @@ async def invest_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYP
     if pending:
         await update.message.reply_text(
             "You still have a pending deposit for this plan.\n"
-            f"Cancel it: /canceldeposit {pending[0][0]}\n"
-            "Or wait for it to expire.",
+            "Tap 📦 Deposits to view it, or wait for it to expire.",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -231,6 +232,8 @@ async def _create_offline_deposit(user_id: int, plan_id: int, amount: float, cur
 
 
 async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from keyboards import _deposits_keyboard
+
     user_id = update.effective_user.id
     db = await get_db()
 
@@ -248,9 +251,12 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    has_pending = False
     lines = ["Your Deposits:\n"]
     for r in rows:
         dep_id, plan_id, amount, currency, status, addr, txn_id, created = r
+        if status == "pending":
+            has_pending = True
         emoji = {
             "pending": "⏳", "confirmed": "✅", "expired": "❌",
             "cancelled": "❌", "underpaid": "⚠️",
@@ -263,24 +269,42 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
             line += f"\n  Send to: {addr}"
         lines.append(line)
 
-    await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
+    keyboard = _deposits_keyboard(has_pending)
+    await update.message.reply_text("\n".join(lines), reply_markup=keyboard)
 
 
-async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# --- Cancel-deposit conversation ---
+
+async def cancel_deposit_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
+    db = await get_db()
+    pending = await db.execute_fetchall(
+        "SELECT id, plan_id, amount, currency, created_at FROM deposits WHERE user_id = ? AND status = 'pending' ORDER BY created_at DESC",
+        (user_id,),
+    )
 
-    if not context.args:
-        await update.message.reply_text(
-            "Usage: /canceldeposit <deposit_id>",
-            reply_markup=MAIN_MENU,
-        )
-        return
+    if not pending:
+        await update.message.reply_text("You have no pending deposits to cancel.", reply_markup=MAIN_MENU)
+        return ConversationHandler.END
+
+    lines = ["Your pending deposits:\n"]
+    for r in pending:
+        lines.append(f"  #{r[0]} | Plan {r[1]} | {r[2]} {r[3]} | {r[4][:16]}")
+    lines.append("\nEnter the deposit # to cancel:")
+
+    await update.message.reply_text("\n".join(lines), reply_markup=CANCEL_ONLY)
+    return CD_PICK_DEPOSIT
+
+
+async def cancel_deposit_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.effective_user.id
+    text = update.message.text.strip().lstrip("#")
 
     try:
-        dep_id = int(context.args[0])
+        dep_id = int(text)
     except ValueError:
-        await update.message.reply_text("ID must be a number.", reply_markup=MAIN_MENU)
-        return
+        await update.message.reply_text("Enter a valid deposit number:", reply_markup=CANCEL_ONLY)
+        return CD_PICK_DEPOSIT
 
     db = await get_db()
     row = await db.execute_fetchall(
@@ -289,19 +313,19 @@ async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if not row:
-        await update.message.reply_text("Deposit not found.", reply_markup=MAIN_MENU)
-        return
+        await update.message.reply_text("Deposit not found. Try again:", reply_markup=CANCEL_ONLY)
+        return CD_PICK_DEPOSIT
 
     if row[0][1] != user_id:
-        await update.message.reply_text("That deposit doesn't belong to you.", reply_markup=MAIN_MENU)
-        return
+        await update.message.reply_text("That deposit doesn't belong to you. Try again:", reply_markup=CANCEL_ONLY)
+        return CD_PICK_DEPOSIT
 
     if row[0][2] != "pending":
         await update.message.reply_text(
-            f"Deposit status: {row[0][2]}. It can no longer be cancelled.",
+            f"Deposit #{dep_id} is {row[0][2]}. It can no longer be cancelled.",
             reply_markup=MAIN_MENU,
         )
-        return
+        return ConversationHandler.END
 
     await db.execute(
         "UPDATE deposits SET status = 'cancelled' WHERE id = ?",
@@ -310,6 +334,12 @@ async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await db.commit()
 
     await update.message.reply_text(f"Deposit #{dep_id} cancelled.", reply_markup=MAIN_MENU)
+    return ConversationHandler.END
+
+
+async def cancel_deposit_abort(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("Cancelled.", reply_markup=MAIN_MENU)
+    return ConversationHandler.END
 
 
 def register(app):
@@ -337,8 +367,25 @@ def register(app):
             CommandHandler("cancel", invest_cancel),
         ],
     )
+
+    cancel_dep_conv = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.Text([BTN_CANCEL_DEPOSIT]) & ~filters.COMMAND, cancel_deposit_start),
+        ],
+        states={
+            CD_PICK_DEPOSIT: [
+                MessageHandler(filters.Text([BTN_CANCEL]) & ~filters.COMMAND, cancel_deposit_abort),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, cancel_deposit_pick),
+            ],
+        },
+        fallbacks=[
+            MessageHandler(filters.Text([BTN_CANCEL]) & ~filters.COMMAND, cancel_deposit_abort),
+            CommandHandler("cancel", cancel_deposit_abort),
+        ],
+    )
+
     app.add_handler(invest_conv)
+    app.add_handler(cancel_dep_conv)
 
     app.add_handler(CommandHandler("plans", plans))
     app.add_handler(CommandHandler("deposits", deposits))
-    app.add_handler(CommandHandler("canceldeposit", canceldeposit))

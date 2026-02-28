@@ -154,7 +154,7 @@ async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"Payment confirmed! 🎉\n\n"
                 f"{plan['name']} | {dep[3]} {dep[4]}\n"
                 f"Profit: {plan['profit_pct']}% in {plan['duration_days']} days\n"
-                "Your investment is now active. /portfolio"
+                "Your investment is now active. Tap 📈 Portfolio to view it."
             ),
         )
     except Exception as e:

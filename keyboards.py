@@ -15,6 +15,7 @@ BTN_REFERRAL = "👥 Referral"
 BTN_HOW = "❓ How It Works"
 BTN_DEPOSITS = "📦 Deposits"
 BTN_CANCEL = "❌ Cancel"
+BTN_CANCEL_DEPOSIT = "🚫 Cancel a Deposit"
 BTN_BACK = "🔙 Back"
 
 BTN_PLAN_1 = "Plan 1"
@@ -67,3 +68,11 @@ WALLET_MENU = ReplyKeyboardMarkup(
     resize_keyboard=True,
     one_time_keyboard=True,
 )
+
+
+def _deposits_keyboard(has_pending: bool) -> ReplyKeyboardMarkup:
+    rows = []
+    if has_pending:
+        rows.append([KeyboardButton(BTN_CANCEL_DEPOSIT)])
+    rows.append([KeyboardButton(BTN_BACK)])
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True, one_time_keyboard=True)

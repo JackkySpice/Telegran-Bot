@@ -40,7 +40,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT balance_trx, balance_usdt FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Please register first: /start", reply_markup=MAIN_MENU)
+        await update.message.reply_text("Please register first by tapping Start.", reply_markup=MAIN_MENU)
         return
 
     trx, usdt = row[0]
@@ -64,7 +64,7 @@ async def mywallet_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT wallet_address FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Please register first: /start", reply_markup=MAIN_MENU)
+        await update.message.reply_text("Please register first by tapping Start.", reply_markup=MAIN_MENU)
         return
 
     addr = row[0][0]
@@ -134,7 +134,7 @@ async def withdraw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "SELECT wallet_address FROM users WHERE user_id = ?", (user_id,)
     )
     if not user_row:
-        await update.message.reply_text("Please register first: /start", reply_markup=MAIN_MENU)
+        await update.message.reply_text("Please register first by tapping Start.", reply_markup=MAIN_MENU)
         return ConversationHandler.END
 
     if not user_row[0][0]:

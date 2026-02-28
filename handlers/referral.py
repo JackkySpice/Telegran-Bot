@@ -19,7 +19,7 @@ async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT referral_code FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Register: /start", reply_markup=MAIN_MENU)
+        await update.message.reply_text("Please register first by tapping Start.", reply_markup=MAIN_MENU)
         return
 
     ref_code = row[0][0]

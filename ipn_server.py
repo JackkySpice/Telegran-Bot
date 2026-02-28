@@ -257,7 +257,7 @@ async def _notify_user(
                 f"Payment confirmed! 🎉\n\n"
                 f"{plan['name']} | {amount} {currency}\n"
                 f"Profit: {plan['profit_pct']}% in {plan['duration_days']} days\n"
-                "Your investment is now active. /portfolio"
+                "Your investment is now active. Tap 📈 Portfolio to view it."
             )
         elif status == "underpaid":
             text = (
@@ -270,7 +270,7 @@ async def _notify_user(
             text = (
                 f"Deposit cancelled/expired.\n"
                 f"Plan {plan_id} | {amount} {currency}\n"
-                "Try /invest again."
+                "Tap 💰 Invest to try again."
             )
 
         await _bot_app.bot.send_message(chat_id=user_id, text=text)
