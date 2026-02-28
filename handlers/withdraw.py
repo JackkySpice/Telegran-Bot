@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from datetime import datetime, timezone
 
 from telegram import Update
@@ -40,17 +41,22 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT balance_trx, balance_usdt FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Please register first by tapping Start.", reply_markup=MAIN_MENU)
+        await update.message.reply_text(
+            "⚠️ Please register first by tapping <b>Start</b>.",
+            parse_mode="HTML",
+            reply_markup=MAIN_MENU,
+        )
         return
 
     trx, usdt = row[0]
     await update.message.reply_text(
-        f"Your Balance:\n"
-        f"TRX: {trx:.4f}\n"
-        f"USDT: {usdt:.4f}\n\n"
-        f"Min withdrawal: {config.MIN_WITHDRAWAL}\n"
-        f"Fee: {config.WITHDRAWAL_FEE_PCT}%\n"
-        f"Schedule: Every {config.PAYOUT_DAY}",
+        f"<b>💵 Your Balance</b>\n\n"
+        f"TRX:  <code>{trx:.4f}</code>\n"
+        f"USDT: <code>{usdt:.4f}</code>\n\n"
+        f"Min withdrawal: <code>{config.MIN_WITHDRAWAL}</code>\n"
+        f"Fee: <code>{config.WITHDRAWAL_FEE_PCT}%</code>\n"
+        f"Schedule: Every <b>{config.PAYOUT_DAY}</b>",
+        parse_mode="HTML",
         reply_markup=MAIN_MENU,
     )
 
@@ -64,18 +70,28 @@ async def mywallet_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT wallet_address FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Please register first by tapping Start.", reply_markup=MAIN_MENU)
+        await update.message.reply_text(
+            "⚠️ Please register first by tapping <b>Start</b>.",
+            parse_mode="HTML",
+            reply_markup=MAIN_MENU,
+        )
         return
 
     addr = row[0][0]
     if addr:
         await update.message.reply_text(
-            f"Your wallet: {addr}\n\nTap Set Wallet to change it.",
+            f"<b>👛 Your Wallet</b>\n\n"
+            f"<code>{html.escape(addr)}</code>\n\n"
+            "Tap <b>Set Wallet</b> to change it.",
+            parse_mode="HTML",
             reply_markup=WALLET_MENU,
         )
     else:
         await update.message.reply_text(
-            "You don't have a wallet set yet. Tap Set Wallet to add one.",
+            "<b>👛 Your Wallet</b>\n\n"
+            "<i>No wallet set yet.</i>\n"
+            "Tap <b>Set Wallet</b> to add one.",
+            parse_mode="HTML",
             reply_markup=WALLET_MENU,
         )
 
@@ -84,7 +100,9 @@ async def mywallet_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def setwallet_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text(
+        "<b>👛 Set Wallet</b>\n\n"
         "Send me your TRX wallet address:",
+        parse_mode="HTML",
         reply_markup=CANCEL_ONLY,
     )
     return SW_ENTER_ADDRESS
@@ -96,7 +114,7 @@ async def setwallet_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     if len(address) < 20:
         await update.message.reply_text(
-            "Invalid address (too short). Try again:",
+            "⚠️ Invalid address (too short). Try again:",
             reply_markup=CANCEL_ONLY,
         )
         return SW_ENTER_ADDRESS
@@ -107,7 +125,11 @@ async def setwallet_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         (address, user_id),
     )
     await db.commit()
-    await update.message.reply_text(f"Wallet saved: {address}", reply_markup=MAIN_MENU)
+    await update.message.reply_text(
+        f"✅ <b>Wallet saved</b>\n\n<code>{html.escape(address)}</code>",
+        parse_mode="HTML",
+        reply_markup=MAIN_MENU,
+    )
     return ConversationHandler.END
 
 
@@ -125,7 +147,8 @@ async def withdraw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     now = datetime.now(timezone.utc)
     if now.strftime("%A") != config.PAYOUT_DAY:
         await update.message.reply_text(
-            f"Withdrawals are only available on {config.PAYOUT_DAY}. Come back then!",
+            f"⚠️ Withdrawals are only available on <b>{config.PAYOUT_DAY}</b>. Come back then!",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -134,12 +157,18 @@ async def withdraw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "SELECT wallet_address FROM users WHERE user_id = ?", (user_id,)
     )
     if not user_row:
-        await update.message.reply_text("Please register first by tapping Start.", reply_markup=MAIN_MENU)
+        await update.message.reply_text(
+            "⚠️ Please register first by tapping <b>Start</b>.",
+            parse_mode="HTML",
+            reply_markup=MAIN_MENU,
+        )
         return ConversationHandler.END
 
     if not user_row[0][0]:
         await update.message.reply_text(
-            "Please set your wallet address first. Tap 👛 Wallet.",
+            "⚠️ Please set your wallet address first.\n"
+            "Tap 👛 <b>Wallet</b>.",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -163,12 +192,17 @@ async def withdraw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         days_left = (nearest - now).days
         await update.message.reply_text(
-            f"Still in lock period. Unlocks in {days_left} day(s).",
+            f"🔒 Still in lock period. Unlocks in <b>{days_left} day(s)</b>.",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
 
-    await update.message.reply_text("Enter withdrawal amount:", reply_markup=CANCEL_ONLY)
+    await update.message.reply_text(
+        "<b>🏧 Withdraw</b>\n\nEnter withdrawal amount:",
+        parse_mode="HTML",
+        reply_markup=CANCEL_ONLY,
+    )
     return WD_ENTER_AMOUNT
 
 
@@ -176,29 +210,38 @@ async def withdraw_enter_amount(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         amount = float(update.message.text.strip())
     except ValueError:
-        await update.message.reply_text("Enter a valid number:", reply_markup=CANCEL_ONLY)
+        await update.message.reply_text(
+            "⚠️ Enter a valid number:", reply_markup=CANCEL_ONLY
+        )
         return WD_ENTER_AMOUNT
 
     if amount <= 0:
-        await update.message.reply_text("Amount must be positive:", reply_markup=CANCEL_ONLY)
+        await update.message.reply_text(
+            "⚠️ Amount must be positive:", reply_markup=CANCEL_ONLY
+        )
         return WD_ENTER_AMOUNT
 
     if amount < config.MIN_WITHDRAWAL:
         await update.message.reply_text(
-            f"Minimum withdrawal: {config.MIN_WITHDRAWAL}. Try again:",
+            f"⚠️ Minimum withdrawal: <code>{config.MIN_WITHDRAWAL}</code>. Try again:",
+            parse_mode="HTML",
             reply_markup=CANCEL_ONLY,
         )
         return WD_ENTER_AMOUNT
 
     context.user_data["wd_amount"] = amount
-    await update.message.reply_text("Choose currency:", reply_markup=CURRENCY_PICKER)
+    await update.message.reply_text(
+        "Choose currency:", reply_markup=CURRENCY_PICKER
+    )
     return WD_PICK_CURRENCY
 
 
 async def withdraw_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     currency = update.message.text.strip().upper()
     if currency not in config.SUPPORTED_CURRENCIES:
-        await update.message.reply_text("Pick TRX or USDT:", reply_markup=CURRENCY_PICKER)
+        await update.message.reply_text(
+            "Pick TRX or USDT:", reply_markup=CURRENCY_PICKER
+        )
         return WD_PICK_CURRENCY
 
     user_id = update.effective_user.id
@@ -224,7 +267,8 @@ async def withdraw_pick_currency(update: Update, context: ContextTypes.DEFAULT_T
         )
         bal = current[0][0] if current else 0
         await update.message.reply_text(
-            f"Insufficient balance. Your balance: {bal:.4f} {currency}.",
+            f"⚠️ Insufficient balance.\nYour balance: <code>{bal:.4f} {currency}</code>",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -236,13 +280,15 @@ async def withdraw_pick_currency(update: Update, context: ContextTypes.DEFAULT_T
     )
     await db.commit()
 
+    addr_escaped = html.escape(wallet_address)
     await update.message.reply_text(
-        f"Withdrawal submitted!\n\n"
-        f"Amount: {amount} {currency}\n"
-        f"Fee ({config.WITHDRAWAL_FEE_PCT}%): {fee:.4f} {currency}\n"
-        f"You receive: {net:.4f} {currency}\n"
-        f"To: {wallet_address}\n"
-        "Status: Pending",
+        f"<b>✅ Withdrawal Submitted</b>\n\n"
+        f"Amount:      <code>{amount} {currency}</code>\n"
+        f"Fee ({config.WITHDRAWAL_FEE_PCT}%):   <code>{fee:.4f} {currency}</code>\n"
+        f"You receive: <code>{net:.4f} {currency}</code>\n"
+        f"To: <code>{addr_escaped}</code>\n\n"
+        "Status: <i>Pending</i>",
+        parse_mode="HTML",
         reply_markup=MAIN_MENU,
     )
     return ConversationHandler.END
@@ -266,19 +312,25 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if not rows:
-        await update.message.reply_text("No withdrawals yet.", reply_markup=MAIN_MENU)
+        await update.message.reply_text(
+            "<b>📜 Withdrawal History</b>\n\n<i>No withdrawals yet.</i>",
+            parse_mode="HTML",
+            reply_markup=MAIN_MENU,
+        )
         return
 
-    lines = ["Withdrawal History:\n"]
+    lines = ["<b>📜 Withdrawal History</b>\n"]
     for r in rows:
         wd_id, amount, fee, net, currency, wallet, status, created = r
-        emoji = {"pending": "⏳", "approved": "✅", "rejected": "❌"}.get(status, "?")
+        emoji = {"pending": "⏳", "approved": "✅", "rejected": "❌"}.get(status, "❓")
         lines.append(
-            f"{emoji} #{wd_id} | {net} {currency} | {status}\n"
-            f"  Fee: {fee} | {created[:16]}"
+            f"{emoji} <code>#{wd_id}</code> | <code>{net} {currency}</code> | <b>{status}</b>\n"
+            f"     Fee: <code>{fee}</code> | {created[:16]}"
         )
 
-    await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="HTML", reply_markup=MAIN_MENU
+    )
 
 
 def register(app):

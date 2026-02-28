@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
@@ -54,9 +55,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await db.commit()
 
+    name = html.escape(user.first_name or "there")
     await update.message.reply_text(
-        f"Welcome {user.first_name}!\n\n"
+        f"<b>Welcome to Vantage, {name}!</b>\n\n"
         "Use the buttons below to navigate.",
+        parse_mode="HTML",
         reply_markup=MAIN_MENU,
     )
 
@@ -102,7 +105,11 @@ async def _route_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _route_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Main menu:", reply_markup=MAIN_MENU)
+    await update.message.reply_text(
+        "<b>Main Menu</b>",
+        parse_mode="HTML",
+        reply_markup=MAIN_MENU,
+    )
 
 
 def register(app):

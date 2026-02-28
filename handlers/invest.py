@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 
 from telegram import Update
@@ -48,7 +49,8 @@ async def _ensure_registered(update: Update) -> bool:
     )
     if not row:
         await update.message.reply_text(
-            "Please register first by tapping Start.",
+            "⚠️ Please register first by tapping <b>Start</b>.",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return False
@@ -56,19 +58,22 @@ async def _ensure_registered(update: Update) -> bool:
 
 
 async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lines = ["Investment Plans:\n"]
+    lines = ["<b>📊 Investment Plans</b>\n"]
     for pid, p in config.PLANS.items():
         lines.append(
-            f"Plan {pid}: {p['profit_pct']}% in {p['duration_days']} days\n"
-            f"  {p['min_amount']}-{p['max_amount']} TRX/USDT | unlock {p['lock_days']} days"
+            f"<b>Plan {pid}</b> — {p['profit_pct']}% in {p['duration_days']} days\n"
+            f"  Range: <code>{p['min_amount']} – {p['max_amount']}</code> TRX/USDT\n"
+            f"  Unlock after: <code>{p['lock_days']}</code> days"
         )
     lines.append(
-        f"\nWithdrawal: Every {config.PAYOUT_DAY}, {config.WITHDRAWAL_FEE_PCT}% fee, "
+        f"\n<i>Withdrawal: Every {config.PAYOUT_DAY}, {config.WITHDRAWAL_FEE_PCT}% fee, "
         f"min {config.MIN_WITHDRAWAL}\n"
-        "1 active per plan, max 3 at a time.\n\n"
-        "Tap 💰 Invest to start."
+        "1 active per plan, max 3 at a time.</i>\n\n"
+        "Tap 💰 <b>Invest</b> to start."
     )
-    await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="HTML", reply_markup=MAIN_MENU
+    )
 
 
 # --- Invest conversation ---
@@ -78,7 +83,9 @@ async def invest_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ConversationHandler.END
 
     await update.message.reply_text(
-        "Choose a plan:", reply_markup=PLAN_PICKER
+        "<b>💰 Invest</b>\n\nChoose a plan:",
+        parse_mode="HTML",
+        reply_markup=PLAN_PICKER,
     )
     return PICK_PLAN
 
@@ -88,7 +95,8 @@ async def invest_pick_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     plan_id = PLAN_TEXT_MAP.get(text)
     if plan_id is None:
         await update.message.reply_text(
-            "Pick a plan from the buttons below:", reply_markup=PLAN_PICKER
+            "Pick a plan from the buttons below:",
+            reply_markup=PLAN_PICKER,
         )
         return PICK_PLAN
 
@@ -96,9 +104,10 @@ async def invest_pick_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     context.user_data["invest_plan"] = plan_id
 
     await update.message.reply_text(
-        f"{plan['name']}: {plan['profit_pct']}% in {plan['duration_days']} days\n"
-        f"Range: {plan['min_amount']} - {plan['max_amount']}\n\n"
+        f"<b>{plan['name']}</b> — {plan['profit_pct']}% in {plan['duration_days']} days\n"
+        f"Range: <code>{plan['min_amount']} – {plan['max_amount']}</code>\n\n"
         "Enter amount:",
+        parse_mode="HTML",
         reply_markup=CANCEL_ONLY,
     )
     return ENTER_AMOUNT
@@ -109,24 +118,30 @@ async def invest_enter_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
         amount = float(update.message.text.strip())
     except ValueError:
         await update.message.reply_text(
-            "Enter a valid number:", reply_markup=CANCEL_ONLY
+            "⚠️ Enter a valid number:", reply_markup=CANCEL_ONLY
         )
         return ENTER_AMOUNT
 
     if amount <= 0:
         await update.message.reply_text(
-            "Amount must be positive:", reply_markup=CANCEL_ONLY
+            "⚠️ Amount must be positive:", reply_markup=CANCEL_ONLY
         )
         return ENTER_AMOUNT
 
     plan_id = context.user_data["invest_plan"]
     err = validate_amount(plan_id, amount)
     if err:
-        await update.message.reply_text(f"{err}\n\nEnter amount:", reply_markup=CANCEL_ONLY)
+        await update.message.reply_text(
+            f"⚠️ {html.escape(err)}\n\nEnter amount:",
+            parse_mode="HTML",
+            reply_markup=CANCEL_ONLY,
+        )
         return ENTER_AMOUNT
 
     context.user_data["invest_amount"] = amount
-    await update.message.reply_text("Choose currency:", reply_markup=CURRENCY_PICKER)
+    await update.message.reply_text(
+        "Choose currency:", reply_markup=CURRENCY_PICKER
+    )
     return PICK_CURRENCY
 
 
@@ -144,7 +159,11 @@ async def invest_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYP
 
     allowed, reason = await can_user_invest(user_id, plan_id)
     if not allowed:
-        await update.message.reply_text(reason, reply_markup=MAIN_MENU)
+        await update.message.reply_text(
+            f"⚠️ {html.escape(reason)}",
+            parse_mode="HTML",
+            reply_markup=MAIN_MENU,
+        )
         return ConversationHandler.END
 
     db = await get_db()
@@ -154,8 +173,9 @@ async def invest_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     if pending:
         await update.message.reply_text(
-            "You still have a pending deposit for this plan.\n"
-            "Tap 📦 Deposits to view it, or wait for it to expire.",
+            "⚠️ You still have a pending deposit for this plan.\n"
+            "Tap 📦 <b>Deposits</b> to view it, or wait for it to expire.",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -165,9 +185,11 @@ async def invest_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYP
     if not config.CP_PUBLIC_KEY:
         deposit_id = await _create_offline_deposit(user_id, plan_id, amount, currency)
         await update.message.reply_text(
-            f"Deposit #{deposit_id} created (offline mode)\n\n"
-            f"Plan {plan_id} | {amount} {currency}\n"
-            "Admin will confirm manually.",
+            f"<b>✅ Deposit Created</b>\n\n"
+            f"Deposit: <code>#{deposit_id}</code> (offline mode)\n"
+            f"Plan: <b>{plan_id}</b> | Amount: <code>{amount} {currency}</code>\n\n"
+            "<i>Admin will confirm manually.</i>",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -182,7 +204,7 @@ async def invest_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYP
     except CoinPaymentsError as e:
         logger.error("CoinPayments error: %s", e)
         await update.message.reply_text(
-            "Payment system error. Try again later.",
+            "⚠️ Payment system error. Try again later.",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -197,15 +219,18 @@ async def invest_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYP
 
     plan = config.PLANS[plan_id]
     timeout_hrs = config.DEPOSIT_TIMEOUT_HOURS
+    addr = html.escape(tx["address"])
+    txn = html.escape(tx["txn_id"])
 
     await update.message.reply_text(
-        f"Send {amount} {currency} to this address:\n\n"
-        f"`{tx['address']}`\n\n"
-        f"Plan: {plan['name']} ({plan['profit_pct']}% in {plan['duration_days']} days)\n"
-        f"TXN: {tx['txn_id']}\n"
-        f"Expires in {timeout_hrs} hours.\n\n"
-        "Investment starts once payment is confirmed.",
-        parse_mode="Markdown",
+        f"<b>💳 Deposit Address</b>\n\n"
+        f"Send <code>{amount} {currency}</code> to:\n"
+        f"<code>{addr}</code>\n\n"
+        f"Plan: <b>{plan['name']}</b> ({plan['profit_pct']}% in {plan['duration_days']} days)\n"
+        f"TXN: <code>{txn}</code>\n"
+        f"Expires in <b>{timeout_hrs} hours</b>.\n\n"
+        "<i>Investment starts once payment is confirmed.</i>",
+        parse_mode="HTML",
         reply_markup=MAIN_MENU,
     )
     return ConversationHandler.END
@@ -246,31 +271,36 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not rows:
         await update.message.reply_text(
-            "No deposits yet. Tap 💰 Invest to start.",
+            "<b>📦 Deposits</b>\n\n"
+            "<i>No deposits yet.</i> Tap 💰 <b>Invest</b> to start.",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return
 
     has_pending = False
-    lines = ["Your Deposits:\n"]
+    lines = ["<b>📦 Your Deposits</b>\n"]
     for r in rows:
         dep_id, plan_id, amount, currency, status, addr, txn_id, created = r
         if status == "pending":
             has_pending = True
         emoji = {
             "pending": "⏳", "confirmed": "✅", "expired": "❌",
-            "cancelled": "❌", "underpaid": "⚠️",
-        }.get(status, "?")
+            "cancelled": "🚫", "underpaid": "⚠️",
+        }.get(status, "❓")
         line = (
-            f"{emoji} #{dep_id} | Plan {plan_id} | {amount} {currency} | {status}\n"
-            f"  {created[:16]}"
+            f"{emoji} <code>#{dep_id}</code> | Plan {plan_id} "
+            f"| <code>{amount} {currency}</code> | <b>{status}</b>\n"
+            f"     {created[:16]}"
         )
         if status == "pending" and addr and addr != "manual":
-            line += f"\n  Send to: {addr}"
+            line += f"\n     Send to: <code>{html.escape(addr)}</code>"
         lines.append(line)
 
     keyboard = _deposits_keyboard(has_pending)
-    await update.message.reply_text("\n".join(lines), reply_markup=keyboard)
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="HTML", reply_markup=keyboard
+    )
 
 
 # --- Cancel-deposit conversation ---
@@ -284,15 +314,22 @@ async def cancel_deposit_start(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
     if not pending:
-        await update.message.reply_text("You have no pending deposits to cancel.", reply_markup=MAIN_MENU)
+        await update.message.reply_text(
+            "You have no pending deposits to cancel.",
+            reply_markup=MAIN_MENU,
+        )
         return ConversationHandler.END
 
-    lines = ["Your pending deposits:\n"]
+    lines = ["<b>🚫 Cancel Deposit</b>\n\nYour pending deposits:\n"]
     for r in pending:
-        lines.append(f"  #{r[0]} | Plan {r[1]} | {r[2]} {r[3]} | {r[4][:16]}")
-    lines.append("\nEnter the deposit # to cancel:")
+        lines.append(
+            f"  <code>#{r[0]}</code> | Plan {r[1]} | <code>{r[2]} {r[3]}</code> | {r[4][:16]}"
+        )
+    lines.append("\nEnter the deposit <b>#</b> to cancel:")
 
-    await update.message.reply_text("\n".join(lines), reply_markup=CANCEL_ONLY)
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="HTML", reply_markup=CANCEL_ONLY
+    )
     return CD_PICK_DEPOSIT
 
 
@@ -303,7 +340,9 @@ async def cancel_deposit_pick(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         dep_id = int(text)
     except ValueError:
-        await update.message.reply_text("Enter a valid deposit number:", reply_markup=CANCEL_ONLY)
+        await update.message.reply_text(
+            "⚠️ Enter a valid deposit number:", reply_markup=CANCEL_ONLY
+        )
         return CD_PICK_DEPOSIT
 
     db = await get_db()
@@ -313,16 +352,23 @@ async def cancel_deposit_pick(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     if not row:
-        await update.message.reply_text("Deposit not found. Try again:", reply_markup=CANCEL_ONLY)
+        await update.message.reply_text(
+            "⚠️ Deposit not found. Try again:", reply_markup=CANCEL_ONLY
+        )
         return CD_PICK_DEPOSIT
 
     if row[0][1] != user_id:
-        await update.message.reply_text("That deposit doesn't belong to you. Try again:", reply_markup=CANCEL_ONLY)
+        await update.message.reply_text(
+            "⚠️ That deposit doesn't belong to you. Try again:",
+            reply_markup=CANCEL_ONLY,
+        )
         return CD_PICK_DEPOSIT
 
     if row[0][2] != "pending":
         await update.message.reply_text(
-            f"Deposit #{dep_id} is {row[0][2]}. It can no longer be cancelled.",
+            f"Deposit <code>#{dep_id}</code> is <b>{html.escape(row[0][2])}</b>. "
+            "It can no longer be cancelled.",
+            parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -333,7 +379,11 @@ async def cancel_deposit_pick(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     await db.commit()
 
-    await update.message.reply_text(f"Deposit #{dep_id} cancelled.", reply_markup=MAIN_MENU)
+    await update.message.reply_text(
+        f"✅ Deposit <code>#{dep_id}</code> cancelled.",
+        parse_mode="HTML",
+        reply_markup=MAIN_MENU,
+    )
     return ConversationHandler.END
 
 
