@@ -13,10 +13,12 @@ ADMIN_USER_IDS = [
 DB_PATH = os.getenv("DB_PATH", "kimielbot.db")
 
 # CoinPayments
-CP_PUBLIC_KEY = os.getenv("CP_PUBLIC_KEY", "")
-CP_PRIVATE_KEY = os.getenv("CP_PRIVATE_KEY", "")
-CP_IPN_SECRET = os.getenv("CP_IPN_SECRET", "")
-CP_MERCHANT_ID = os.getenv("CP_MERCHANT_ID", "")
+CP_API_VERSION = int(os.getenv("CP_API_VERSION", "1"))  # 1 = legacy, 2 = current (recommended)
+CP_PUBLIC_KEY = os.getenv("CP_PUBLIC_KEY", "")           # v1: API public key
+CP_PRIVATE_KEY = os.getenv("CP_PRIVATE_KEY", "")         # v1: API private key / v2: client secret
+CP_IPN_SECRET = os.getenv("CP_IPN_SECRET", "")           # v1: IPN secret
+CP_MERCHANT_ID = os.getenv("CP_MERCHANT_ID", "")         # v1: merchant ID
+CP_CLIENT_ID = os.getenv("CP_CLIENT_ID", "")             # v2: integration client ID
 IPN_URL = os.getenv("IPN_URL", "")
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "8080"))
 

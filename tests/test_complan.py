@@ -390,19 +390,18 @@ class TestDeposits(unittest.TestCase):
 
 
 class TestCoinPaymentsClient(unittest.TestCase):
-    def test_ipn_verify(self):
+    def test_ipn_verify_v1(self):
         import hashlib
         import hmac
-        from coinpayments import verify_ipn
+        from coinpayments import verify_ipn_v1
 
-        secret = "test_secret"
-        config.CP_IPN_SECRET = secret
+        config.CP_IPN_SECRET = "test_secret"
 
         body = b"test_body_data"
-        expected_hmac = hmac.new(secret.encode(), body, hashlib.sha512).hexdigest()
+        expected_hmac = hmac.new(b"test_secret", body, hashlib.sha512).hexdigest()
 
-        self.assertTrue(verify_ipn(expected_hmac, body))
-        self.assertFalse(verify_ipn("wrong_hmac", body))
+        self.assertTrue(verify_ipn_v1(expected_hmac, body))
+        self.assertFalse(verify_ipn_v1("wrong_hmac", body))
 
         config.CP_IPN_SECRET = ""
 
@@ -410,6 +409,28 @@ class TestCoinPaymentsClient(unittest.TestCase):
         from coinpayments import COIN_MAP
         self.assertEqual(COIN_MAP["TRX"], "TRX")
         self.assertEqual(COIN_MAP["USDT"], "USDT.TRC20")
+
+    def test_status_helpers(self):
+        from coinpayments import is_payment_complete, is_payment_failed, is_payment_pending
+        self.assertFalse(is_payment_complete(-1))
+        self.assertFalse(is_payment_complete(0))
+        self.assertFalse(is_payment_complete(1))
+        self.assertTrue(is_payment_complete(2))
+        self.assertTrue(is_payment_complete(100))
+        self.assertTrue(is_payment_failed(-1))
+        self.assertFalse(is_payment_failed(0))
+        self.assertTrue(is_payment_pending(0))
+        self.assertTrue(is_payment_pending(1))
+        self.assertFalse(is_payment_pending(2))
+
+    def test_v2_status_mapping(self):
+        from coinpayments import _map_v2_status, IPN_STATUS_COMPLETE, IPN_STATUS_CANCELLED, IPN_STATUS_WAITING
+        self.assertEqual(_map_v2_status("paid"), IPN_STATUS_COMPLETE)
+        self.assertEqual(_map_v2_status("completed"), IPN_STATUS_COMPLETE)
+        self.assertEqual(_map_v2_status("cancelled"), IPN_STATUS_CANCELLED)
+        self.assertEqual(_map_v2_status("expired"), IPN_STATUS_CANCELLED)
+        self.assertEqual(_map_v2_status("new"), IPN_STATUS_WAITING)
+        self.assertEqual(_map_v2_status("pending"), IPN_STATUS_WAITING)
 
 
 class TestWalletAddress(unittest.TestCase):

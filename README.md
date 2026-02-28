@@ -1,10 +1,10 @@
 # Kimielbot
 
-Telegram investment bot with CoinPayments integration, tiered compensation plans, referral commissions, and automated daily profit distribution.
+Telegram investment bot with CoinPayments integration (v1 + v2), tiered compensation plans, referral commissions, and automated daily profit distribution.
 
 ## Features
 
-- **CoinPayments Integration** for anonymous crypto deposits (TRX, USDT/TRC-20)
+- **CoinPayments v1 + v2** for anonymous crypto deposits (TRX, USDT/TRC-20)
 - **3 Tiered Investment Plans** with varying profit rates and lock periods
 - **5-Level Referral System** (commissions on profit, not deposit)
 - **Automated Daily Earnings** via scheduled job (00:00 UTC)
@@ -31,6 +31,16 @@ Telegram investment bot with CoinPayments integration, tiered compensation plans
 5. Bot automatically activates the investment and notifies the user
 
 If CoinPayments is not configured, deposits are created in "offline" mode and an admin confirms them manually via `/confirmdeposit <id>`.
+
+## CoinPayments Notes
+
+- **v1 (legacy)** uses `api.php` endpoint with HMAC-SHA512. Still works but CoinPayments recommends v2.
+- **v2 (current)** uses REST JSON at `a-api.coinpayments.net` with `X-CoinPayments-Signature` headers.
+- Set `CP_API_VERSION=2` in `.env` to use v2. Default is 1.
+- CoinPayments charges a **~0.5% network fee** on deposits. The bot accounts for this when validating received amounts (3.5% combined tolerance: 0.5% CP fee + 3% underpay margin).
+- **Underpaid deposits** are flagged and the user is notified. Admin must resolve manually.
+- **Overpayments** are auto-refunded by CoinPayments (triggers a cancel/refund IPN).
+- The webhook server auto-detects v1 vs v2 callbacks based on headers.
 
 ## Setup
 

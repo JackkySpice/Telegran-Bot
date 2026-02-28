@@ -156,31 +156,41 @@ class TestCoinPaymentsVerify(unittest.TestCase):
     def test_verify_valid_hmac(self):
         import hashlib
         import hmac as hmac_mod
-        from coinpayments import verify_ipn
+        from coinpayments import verify_ipn_v1
 
         config.CP_IPN_SECRET = "test_secret_123"
         body = b"txn_id=abc123&status=100&amount1=100"
         expected = hmac_mod.new(b"test_secret_123", body, hashlib.sha512).hexdigest()
-        self.assertTrue(verify_ipn(expected, body))
+        self.assertTrue(verify_ipn_v1(expected, body))
         config.CP_IPN_SECRET = ""
 
     def test_reject_invalid_hmac(self):
-        from coinpayments import verify_ipn
+        from coinpayments import verify_ipn_v1
         config.CP_IPN_SECRET = "test_secret_123"
-        self.assertFalse(verify_ipn("totally_wrong", b"some body"))
+        self.assertFalse(verify_ipn_v1("totally_wrong", b"some body"))
         config.CP_IPN_SECRET = ""
 
     def test_reject_tampered_body(self):
         import hashlib
         import hmac as hmac_mod
-        from coinpayments import verify_ipn
+        from coinpayments import verify_ipn_v1
 
         config.CP_IPN_SECRET = "secret"
         body_original = b"amount=100"
         body_tampered = b"amount=999"
         sig = hmac_mod.new(b"secret", body_original, hashlib.sha512).hexdigest()
-        self.assertFalse(verify_ipn(sig, body_tampered))
+        self.assertFalse(verify_ipn_v1(sig, body_tampered))
         config.CP_IPN_SECRET = ""
+
+    def test_status_2_is_complete(self):
+        """CoinPayments status 2 means Complete. Previously we only checked >= 100."""
+        from coinpayments import is_payment_complete
+        self.assertTrue(is_payment_complete(2))
+
+    def test_status_1_is_not_complete(self):
+        """Status 1 means confirmed but not settled. Should NOT activate."""
+        from coinpayments import is_payment_complete
+        self.assertFalse(is_payment_complete(1))
 
 
 class TestDepositFlow(unittest.TestCase):
