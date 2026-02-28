@@ -5,19 +5,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from telegram import Update
-from telegram.ext import (
-    CommandHandler,
-    ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
-)
+from telegram.ext import CommandHandler, ContextTypes
 
 import config
 from complan import calculate_withdrawal_fee
 from database import get_db
-
-WAITING_WALLET = 1
 
 
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
