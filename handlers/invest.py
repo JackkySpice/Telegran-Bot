@@ -187,10 +187,13 @@ async def deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "pending": "⏳", "confirmed": "✅", "expired": "❌",
             "cancelled": "❌", "underpaid": "⚠️",
         }.get(status, "?")
-        lines.append(
+        line = (
             f"{emoji} #{dep_id} | Plan {plan_id} | {amount} {currency} | {status}\n"
             f"  {created[:16]}"
         )
+        if status == "pending" and addr and addr != "manual":
+            line += f"\n  Send to: {addr}"
+        lines.append(line)
 
     await update.message.reply_text("\n".join(lines))
 

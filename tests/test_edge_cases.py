@@ -48,7 +48,7 @@ class TestNegativeAndZeroAmounts(unittest.TestCase):
 class TestUnregisteredUser(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
 
     def test_create_investment_fails_for_unregistered(self):
         async def _test():
@@ -61,7 +61,7 @@ class TestUnregisteredUser(unittest.TestCase):
 class TestInvestmentCompletion(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
 
     def test_investment_completes_after_full_earnings(self):
         async def _test():
@@ -73,7 +73,7 @@ class TestInvestmentCompletion(unittest.TestCase):
             await create_investment(100, 1, 100, "TRX")
 
             for _ in range(61):
-                await process_daily_earnings()
+                await process_daily_earnings(force=True)
 
             inv = await db.execute_fetchall(
                 "SELECT status, earned_so_far, total_profit FROM investments WHERE user_id = 100"
@@ -92,13 +92,13 @@ class TestInvestmentCompletion(unittest.TestCase):
             await create_investment(101, 1, 100, "TRX")
 
             for _ in range(61):
-                await process_daily_earnings()
+                await process_daily_earnings(force=True)
 
             bal_before = (await db.execute_fetchall(
                 "SELECT balance_trx FROM users WHERE user_id = 101"
             ))[0][0]
 
-            await process_daily_earnings()
+            await process_daily_earnings(force=True)
 
             bal_after = (await db.execute_fetchall(
                 "SELECT balance_trx FROM users WHERE user_id = 101"
@@ -111,7 +111,7 @@ class TestInvestmentCompletion(unittest.TestCase):
 class TestReinvestAfterCompletion(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
 
     def test_can_reinvest_after_plan_completes(self):
         async def _test():
@@ -196,7 +196,7 @@ class TestCoinPaymentsVerify(unittest.TestCase):
 class TestDepositFlow(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
 
     def test_full_deposit_to_investment_flow(self):
         async def _test():
@@ -268,7 +268,7 @@ class TestDepositFlow(unittest.TestCase):
 class TestWalletAddressOnWithdrawal(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
 
     def test_withdrawal_stores_wallet_address(self):
         async def _test():
@@ -302,7 +302,7 @@ class TestReferralOnDeposit(unittest.TestCase):
 
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
         self._orig = config.REFERRAL_ON_PROFIT
 
     def tearDown(self):
@@ -338,7 +338,7 @@ class TestReferralOnDeposit(unittest.TestCase):
 class TestMultipleCurrencyBalance(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
 
     def test_trx_and_usdt_tracked_separately(self):
         async def _test():
@@ -351,7 +351,7 @@ class TestMultipleCurrencyBalance(unittest.TestCase):
             await create_investment(500, 1, 100, "TRX")
             await create_investment(500, 2, 300, "USDT")
 
-            await process_daily_earnings()
+            await process_daily_earnings(force=True)
 
             bal = await db.execute_fetchall(
                 "SELECT balance_trx, balance_usdt FROM users WHERE user_id = 500"

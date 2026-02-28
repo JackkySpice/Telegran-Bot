@@ -1,25 +1,34 @@
+import threading
+
 import aiosqlite
 import config
 
-_db: aiosqlite.Connection | None = None
+_local = threading.local()
 
 
 async def get_db() -> aiosqlite.Connection:
-    global _db
-    if _db is None:
-        _db = await aiosqlite.connect(config.DB_PATH)
-        _db.row_factory = aiosqlite.Row
-        await _db.execute("PRAGMA journal_mode=WAL")
-        await _db.execute("PRAGMA foreign_keys=ON")
-        await _init_tables(_db)
-    return _db
+    """Return a thread-local aiosqlite connection.
+
+    Each thread (bot main loop, IPN server) gets its own connection
+    to avoid sharing aiosqlite across event loops.
+    """
+    db = getattr(_local, "db", None)
+    if db is None:
+        db = await aiosqlite.connect(config.DB_PATH)
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA journal_mode=WAL")
+        await db.execute("PRAGMA foreign_keys=ON")
+        await db.execute("PRAGMA busy_timeout=5000")
+        await _init_tables(db)
+        _local.db = db
+    return db
 
 
 async def close_db():
-    global _db
-    if _db:
-        await _db.close()
-        _db = None
+    db = getattr(_local, "db", None)
+    if db:
+        await db.close()
+        _local.db = None
 
 
 async def _init_tables(db: aiosqlite.Connection):

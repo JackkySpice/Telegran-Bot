@@ -65,11 +65,18 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def trigger_daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually trigger daily earnings. Use /dailyrun force to bypass once-per-day guard."""
     if not _is_admin(update.effective_user.id):
         return
 
-    count = await process_daily_earnings()
-    if count == 0 and await are_payouts_paused():
+    force = bool(context.args and context.args[0].lower() == "force")
+    count = await process_daily_earnings(force=force)
+
+    if count == -1:
+        await update.message.reply_text(
+            "Already ran today. Use /dailyrun force to override."
+        )
+    elif count == 0 and await are_payouts_paused():
         await update.message.reply_text("Payouts paused. /resumepayouts muna.")
     else:
         await update.message.reply_text(f"Done! {count} investments credited. ✅")

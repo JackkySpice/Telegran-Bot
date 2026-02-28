@@ -69,6 +69,7 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append(
             f"{emoji} {plan.get('name', '?')} | {inv['amount']} {inv['currency']}\n"
             f"  Earned: {inv['earned_so_far']:.4f}/{inv['total_profit']:.4f} ({pct_done:.1f}%)\n"
+            f"  Daily: +{inv['daily_profit']:.4f} {inv['currency']}\n"
             f"  Unlock: {inv['unlocks_at'][:10]} | End: {inv['expires_at'][:10]}"
         )
 

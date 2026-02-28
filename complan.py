@@ -213,16 +213,27 @@ async def are_payouts_paused() -> bool:
     return (await get_setting("payouts_paused", "0")) == "1"
 
 
-async def process_daily_earnings():
+async def process_daily_earnings(force: bool = False):
     """Credit daily profit to users with active investments.
 
-    Skips if payouts are paused by admin (e.g. no trading profit this cycle).
+    Skips if payouts are paused or already ran today (prevents double-crediting).
+    Pass force=True to bypass the once-per-day guard (admin override).
     When REFERRAL_ON_PROFIT is True, referral commissions are distributed here.
     """
     if await are_payouts_paused():
         return 0
 
     db = await get_db()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    if not force:
+        last_run = await get_setting("last_earnings_run", "")
+        if last_run == today:
+            return -1
+
+    from database import set_setting
+    await set_setting("last_earnings_run", today)
+
     now = datetime.now(timezone.utc).isoformat()
 
     rows = await db.execute_fetchall(
@@ -262,8 +273,20 @@ async def process_daily_earnings():
 
         credited_count += 1
 
+    await _expire_stale_investments(db, now)
+
     await db.commit()
     return credited_count
+
+
+async def _expire_stale_investments(db, now_iso: str):
+    """Mark investments as 'completed' if they've passed their expiry date,
+    even if earned_so_far < total_profit (e.g. payouts were paused)."""
+    await db.execute(
+        """UPDATE investments SET status = 'completed'
+           WHERE status = 'active' AND expires_at <= ?""",
+        (now_iso,),
+    )
 
 
 async def get_user_portfolio(user_id: int) -> list[dict]:

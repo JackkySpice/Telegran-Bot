@@ -94,7 +94,7 @@ class TestWithdrawalFee(unittest.TestCase):
 class TestInvestmentRules(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
         os.environ["DB_PATH"] = ":memory:"
 
     def test_can_invest_fresh_user(self):
@@ -153,7 +153,7 @@ class TestInvestmentRules(unittest.TestCase):
 class TestReferralOnProfit(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
         os.environ["DB_PATH"] = ":memory:"
 
     def test_no_referral_at_invest_time(self):
@@ -186,7 +186,7 @@ class TestReferralOnProfit(unittest.TestCase):
             await db.commit()
 
             await create_investment(13, 1, 200, "TRX")
-            await process_daily_earnings()
+            await process_daily_earnings(force=True)
 
             daily_profit = 200 * 0.18 / 60
             expected_commission = daily_profit * 0.03
@@ -210,7 +210,7 @@ class TestReferralOnProfit(unittest.TestCase):
             await db.commit()
 
             await create_investment(22, 2, 300, "TRX")
-            await process_daily_earnings()
+            await process_daily_earnings(force=True)
 
             daily_profit = 300 * 0.20 / 60
 
@@ -225,7 +225,7 @@ class TestReferralOnProfit(unittest.TestCase):
 class TestPayoutPause(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
         os.environ["DB_PATH"] = ":memory:"
 
     def test_pause_blocks_earnings(self):
@@ -240,7 +240,7 @@ class TestPayoutPause(unittest.TestCase):
             await set_setting("payouts_paused", "1")
             self.assertTrue(await are_payouts_paused())
 
-            count = await process_daily_earnings()
+            count = await process_daily_earnings(force=True)
             self.assertEqual(count, 0)
 
             row = await db.execute_fetchall(
@@ -259,12 +259,12 @@ class TestPayoutPause(unittest.TestCase):
             await create_investment(51, 1, 100, "TRX")
 
             await set_setting("payouts_paused", "1")
-            await process_daily_earnings()
+            await process_daily_earnings(force=True)
 
             await set_setting("payouts_paused", "0")
             self.assertFalse(await are_payouts_paused())
 
-            count = await process_daily_earnings()
+            count = await process_daily_earnings(force=True)
             self.assertEqual(count, 1)
 
             daily = 100 * 0.18 / 60
@@ -278,7 +278,7 @@ class TestPayoutPause(unittest.TestCase):
 class TestDailyEarnings(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
         os.environ["DB_PATH"] = ":memory:"
 
     def test_daily_credit(self):
@@ -290,7 +290,7 @@ class TestDailyEarnings(unittest.TestCase):
             await db.commit()
 
             await create_investment(30, 1, 100, "TRX")
-            await process_daily_earnings()
+            await process_daily_earnings(force=True)
 
             row = await db.execute_fetchall(
                 "SELECT balance_trx FROM users WHERE user_id = 30"
@@ -304,11 +304,33 @@ class TestDailyEarnings(unittest.TestCase):
             self.assertAlmostEqual(inv[0][0], daily, places=4)
         run(_test())
 
+    def test_double_run_blocked(self):
+        async def _test():
+            db = await get_db()
+            await db.execute(
+                "INSERT INTO users (user_id, username, referral_code) VALUES (31, 'dbl', 'r31')"
+            )
+            await db.commit()
+            await create_investment(31, 1, 100, "TRX")
+
+            count1 = await process_daily_earnings(force=True)
+            self.assertGreater(count1, 0)
+
+            count2 = await process_daily_earnings(force=False)
+            self.assertEqual(count2, -1)
+
+            bal = await db.execute_fetchall(
+                "SELECT balance_trx FROM users WHERE user_id = 31"
+            )
+            daily = 100 * 0.18 / 60
+            self.assertAlmostEqual(bal[0][0], daily, places=4)
+        run(_test())
+
 
 class TestDeposits(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
         os.environ["DB_PATH"] = ":memory:"
 
     def test_deposit_table_exists(self):
@@ -436,7 +458,7 @@ class TestCoinPaymentsClient(unittest.TestCase):
 class TestWalletAddress(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
         os.environ["DB_PATH"] = ":memory:"
 
     def test_set_wallet_address(self):
@@ -477,7 +499,7 @@ class TestWalletAddress(unittest.TestCase):
 class TestPortfolio(unittest.TestCase):
     def setUp(self):
         import database
-        database._db = None
+        database._local = __import__("threading").local()
         os.environ["DB_PATH"] = ":memory:"
 
     def test_portfolio_returns_investments(self):
