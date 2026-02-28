@@ -192,7 +192,8 @@ async def withdraw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         days_left = (nearest - now).days
         await update.message.reply_text(
-            f"🔒 Still in lock period. Unlocks in <b>{days_left} day(s)</b>.",
+            f"🔒 Your earnings are still locked.\n"
+            f"Withdrawable in <b>{days_left} day(s)</b>.",
             parse_mode="HTML",
             reply_markup=MAIN_MENU,
         )

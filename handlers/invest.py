@@ -61,13 +61,15 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = ["<b>📊 Investment Plans</b>\n"]
     for pid, p in config.PLANS.items():
         lines.append(
-            f"<b>Plan {pid}</b> — {p['profit_pct']}% in {p['duration_days']} days\n"
+            f"<b>Plan {pid}</b> — {p['profit_pct']}% profit in {p['duration_days']} days\n"
             f"  Range: <code>{p['min_amount']} – {p['max_amount']}</code> TRX/USDT\n"
-            f"  Unlock after: <code>{p['lock_days']}</code> days"
+            f"  Withdraw earnings after: <code>{p['lock_days']}</code> days"
         )
     lines.append(
-        f"\n<i>Withdrawal: Every {config.PAYOUT_DAY}, {config.WITHDRAWAL_FEE_PCT}% fee, "
-        f"min {config.MIN_WITHDRAWAL}\n"
+        f"\n<i>Investment runs for the full {config.PLANS[1]['duration_days']} days.\n"
+        "Capital is returned when the cycle ends.\n"
+        f"Earnings withdrawal: Every {config.PAYOUT_DAY}, {config.WITHDRAWAL_FEE_PCT}% fee, "
+        f"min {config.MIN_WITHDRAWAL}.\n"
         "1 active per plan, max 3 at a time.</i>\n\n"
         "Tap 💰 <b>Invest</b> to start."
     )
@@ -104,8 +106,9 @@ async def invest_pick_plan(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     context.user_data["invest_plan"] = plan_id
 
     await update.message.reply_text(
-        f"<b>{plan['name']}</b> — {plan['profit_pct']}% in {plan['duration_days']} days\n"
-        f"Range: <code>{plan['min_amount']} – {plan['max_amount']}</code>\n\n"
+        f"<b>{plan['name']}</b> — {plan['profit_pct']}% profit in {plan['duration_days']} days\n"
+        f"Range: <code>{plan['min_amount']} – {plan['max_amount']}</code>\n"
+        f"Withdraw earnings after: <code>{plan['lock_days']}</code> days\n\n"
         "Enter amount:",
         parse_mode="HTML",
         reply_markup=CANCEL_ONLY,
