@@ -1,0 +1,448 @@
+== APK identity ==
+package: com.snake
+versionName: 2.0.9
+versionCode: 4132
+minSdk: 28  targetSdk: 35  maxSdk: None
+appName: Snake Engine
+
+== Components ==
+-- activities: 20
+com.Entry
+com.google.android.gms.common.api.GoogleApiActivity
+com.snake.helper.InternalWebBrowser
+com.snake.helper.ProxyActivity
+com.snake.helper.ProxyActivity$P0
+com.snake.helper.ProxyActivity$P0_L
+com.snake.helper.ProxyActivity$P1
+com.snake.helper.ProxyActivity$P1_L
+com.snake.helper.ProxyActivity$P2
+com.snake.helper.ProxyActivity$P2_L
+com.snake.helper.ProxyActivity$P3
+com.snake.helper.ProxyActivity$P3_L
+com.snake.helper.ProxyPendingActivity$P0
+com.snake.helper.ProxyPendingActivity$P1
+com.snake.helper.ProxyPendingActivity$P2
+com.snake.helper.ProxyPendingActivity$P3
+com.snake.helper.TransparentProxyActivity$P0
+com.snake.helper.TransparentProxyActivity$P1
+com.snake.helper.TransparentProxyActivity$P2
+com.snake.helper.TransparentProxyActivity$P3
+-- services: 17
+com.google.android.datatransport.runtime.backends.TransportBackendDiscovery
+com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService
+com.google.android.gms.measurement.AppMeasurementJobService
+com.google.android.gms.measurement.AppMeasurementService
+com.google.firebase.components.ComponentDiscoveryService
+com.google.firebase.messaging.FirebaseMessagingService
+com.snake.helper.DaemonService
+com.snake.helper.DaemonService$DaemonInnerService
+com.snake.helper.ProxyJobService$P0
+com.snake.helper.ProxyJobService$P1
+com.snake.helper.ProxyJobService$P2
+com.snake.helper.ProxyJobService$P3
+com.snake.helper.ProxyService$P0
+com.snake.helper.ProxyService$P1
+com.snake.helper.ProxyService$P2
+com.snake.helper.ProxyService$P3
+com.snake.helper.ProxyVpnService
+-- receivers: 5
+androidx.profileinstaller.ProfileInstallReceiver
+com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver
+com.google.android.gms.measurement.AppMeasurementReceiver
+com.google.firebase.iid.FirebaseInstanceIdReceiver
+com.snake.helper.ProxyBroadcastReceiver
+-- providers: 9
+androidx.core.content.FileProvider
+androidx.startup.InitializationProvider
+com.google.firebase.provider.FirebaseInitProvider
+com.snake.helper.FileProvider
+com.snake.helper.ProxyContentProvider$P0
+com.snake.helper.ProxyContentProvider$P1
+com.snake.helper.ProxyContentProvider$P2
+com.snake.helper.ProxyContentProvider$P3
+com.snake.helper.SystemCallProvider
+
+== Permissions ==
+android.permission.ACCESS_ADSERVICES_AD_ID
+android.permission.ACCESS_ADSERVICES_ATTRIBUTION
+android.permission.ACCESS_CACHE_FILESYSTEM
+android.permission.ACCESS_COARSE_LOCATION
+android.permission.ACCESS_DOWNLOAD_MANAGER
+android.permission.ACCESS_FINE_LOCATION
+android.permission.ACCESS_GPS
+android.permission.ACCESS_LOCATION_EXTRA_COMMANDS
+android.permission.ACCESS_NETWORK_STATE
+android.permission.ACCESS_WIFI_STATE
+android.permission.ACCESS_WIMAX_STATE
+android.permission.ACCOUNT_MANAGER
+android.permission.AUTHENTICATE_ACCOUNTS
+android.permission.BATTERY_STATS
+android.permission.BIND_APPWIDGET
+android.permission.BIND_DIRECTORY_SEARCH
+android.permission.BIND_EXTERNAL_SERVICE
+android.permission.BLUETOOTH
+android.permission.BLUETOOTH_ADMIN
+android.permission.BLUETOOTH_CONNECT
+android.permission.BLUETOOTH_SCAN
+android.permission.BODY_SENSORS
+android.permission.BROADCAST_SMS
+android.permission.BROADCAST_STICKY
+android.permission.BROADCAST_WAP_PUSH
+android.permission.CALL_PHONE
+android.permission.CAMERA
+android.permission.CHANGE_CONFIGURATION
+android.permission.CHANGE_NETWORK_STATE
+android.permission.CHANGE_WIFI_MULTICAST_STATE
+android.permission.CHANGE_WIFI_STATE
+android.permission.CHANGE_WIMAX_STATE
+android.permission.CLEAR_APP_CACHE
+android.permission.CLEAR_APP_USER_DATA
+android.permission.CREDENTIAL_MANAGER_SET_ALLOWED_PROVIDERS
+android.permission.DELETE_PACKAGES
+android.permission.DETECT_SCREEN_CAPTURE
+android.permission.DEVICE_POWER
+android.permission.DISABLE_KEYGUARD
+android.permission.DOWNLOAD_WITHOUT_NOTIFICATION
+android.permission.EXPAND_STATUS_BAR
+android.permission.FLASHLIGHT
+android.permission.FOREGROUND_SERVICE
+android.permission.FOREGROUND_SERVICE_DATA_SYNC
+android.permission.FOREGROUND_SERVICE_SPECIAL_USE
+android.permission.GET_ACCOUNTS
+android.permission.GET_CLIPS
+android.permission.GET_INTENT_SENDER_INTENT
+android.permission.GET_PACKAGE_SIZE
+android.permission.GET_TASKS
+android.permission.HIDE_OVERLAY_WINDOWS
+android.permission.INSTALL_PACKAGES
+android.permission.INTERNET
+android.permission.KILL_BACKGROUND_PROCESSES
+android.permission.MANAGE_ACCOUNTS
+android.permission.MANAGE_EXTERNAL_STORAGE
+android.permission.MODIFY_AUDIO_SETTINGS
+android.permission.MOUNT_UNMOUNT_FILESYSTEMS
+android.permission.NFC
+android.permission.PACKAGE_USAGE_STATS
+android.permission.PERSISTENT_ACTIVITY
+android.permission.POST_NOTIFICATIONS
+android.permission.PROCESS_OUTGOING_CALLS
+android.permission.QUERY_ALL_PACKAGES
+android.permission.READ_APP_BADGE
+android.permission.READ_CALENDAR
+android.permission.READ_CALL_LOG
+android.permission.READ_CELL_BROADCASTS
+android.permission.READ_CLIPS
+android.permission.READ_CONTACTS
+android.permission.READ_EXTERNAL_STORAGE
+android.permission.READ_INSTALL_SESSIONS
+android.permission.READ_LOGS
+android.permission.READ_OWNER_DATA
+android.permission.READ_PHONE_STATE
+android.permission.READ_PROFILE
+android.permission.READ_SOCIAL_STREAM
+android.permission.READ_SYNC_SETTINGS
+android.permission.READ_SYNC_STATS
+android.permission.READ_USER_DICTIONARY
+android.permission.RECORD_AUDIO
+android.permission.REORDER_TASKS
+android.permission.RESTART_PACKAGES
+android.permission.SEND_RESPOND_VIA_MESSAGE
+android.permission.SEND_SMS
+android.permission.SET_TIME
+android.permission.SET_TIME_ZONE
+android.permission.SET_WALLPAPER
+android.permission.SET_WALLPAPER_HINTS
+android.permission.SUBSCRIBED_FEEDS_READ
+android.permission.SUBSCRIBED_FEEDS_WRITE
+android.permission.TRANSMIT_IR
+android.permission.UPDATE_APP_OPS_STATS
+android.permission.USE_CREDENTIALS
+android.permission.USE_FINGERPRINT
+android.permission.USE_SIP
+android.permission.VIBRATE
+android.permission.WAKE_LOCK
+android.permission.WRITE_CALENDAR
+android.permission.WRITE_CALL_LOG
+android.permission.WRITE_CLIPS
+android.permission.WRITE_CONTACTS
+android.permission.WRITE_EXTERNAL_STORAGE
+android.permission.WRITE_MEDIA_STORAGE
+android.permission.WRITE_OWNER_DATA
+android.permission.WRITE_PROFILE
+android.permission.WRITE_SETTINGS
+android.permission.WRITE_SOCIAL_STREAM
+android.permission.WRITE_SYNC_SETTINGS
+android.permission.WRITE_USER_DICTIONARY
+android.provider.Telephony.SMS_RECEIVED
+cn.nubia.launcher.permission.READ_SETTINGS
+com.actionlauncher.playstore.permission.READ_SETTINGS
+com.anddoes.launcher.permission.READ_SETTINGS
+com.anddoes.launcher.permission.UPDATE_COUNT
+com.android.alarm.permission.SET_ALARM
+com.android.browser.permission.READ_HISTORY_BOOKMARKS
+com.android.browser.permission.WRITE_HISTORY_BOOKMARKS
+com.android.launcher.permission.INSTALL_SHORTCUT
+com.android.launcher.permission.READ_SETTINGS
+com.android.launcher.permission.UNINSTALL_SHORTCUT
+com.android.launcher.permission.WRITE_SETTINGS
+com.android.launcher2.permission.READ_SETTINGS
+com.android.launcher3.permission.READ_SETTINGS
+com.android.vending.BILLING
+com.android.vending.CHECK_LICENSE
+com.android.voicemail.permission.ADD_VOICEMAIL
+com.android.voicemail.permission.READ_WRITE_ALL_VOICEMAIL
+com.apusapps.launcher.permission.READ_SETTINGS
+com.bbk.launcher2.permission.READ_SETTINGS
+com.google.android.c2dm.permission.RECEIVE
+com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE
+com.google.android.gms.permission.ACTIVITY_RECOGNITION
+com.google.android.gms.permission.AD_ID
+com.google.android.gms.permission.AD_ID_NOTIFICATION
+com.google.android.launcher.permission.READ_SETTINGS
+com.google.android.providers.gsf.permission.READ_GSERVICES
+com.google.android.providers.talk.permission.READ_ONLY
+com.google.android.providers.talk.permission.WRITE_ONLY
+com.htc.launcher.permission.READ_SETTINGS
+com.htc.launcher.permission.UPDATE_SHORTCUT
+com.huawei.android.launcher.permission.CHANGE_BADGE
+com.huawei.android.launcher.permission.READ_SETTINGS
+com.huawei.android.launcher.permission.WRITE_SETTINGS
+com.huawei.authentication.HW_ACCESS_AUTH_SERVICE
+com.lenovo.launcher.permission.READ_SETTINGS
+com.majeur.launcher.permission.UPDATE_BADGE
+com.mx.launcher.permission.READ_SETTINGS
+com.oppo.launcher.permission.READ_SETTINGS
+com.oppo.launcher.permission.WRITE_SETTINGS
+com.s.launcher.permission.READ_SETTINGS
+com.samsung.android.providers.context.permission.READ_RECORD_AUDIO
+com.samsung.android.providers.context.permission.WRITE_RECORD_AUDIO
+com.samsung.android.providers.context.permission.WRITE_USE_APP_FEATURE_SURVEY
+com.samsung.android.scloud.backup.lib.read
+com.samsung.android.scloud.backup.lib.write
+com.samsung.svoice.sync.ACCESS_SERVICE
+com.samsung.svoice.sync.READ_DATABASE
+com.samsung.svoice.sync.WRITE_DATABASE
+com.sec.android.app.voicenote.Controller
+com.sec.android.permission.LAUNCH_PERSONAL_PAGE_SERVICE
+com.sec.android.permission.VOIP_INTERFACE
+com.sec.android.provider.badge.permission.READ
+com.sec.android.provider.badge.permission.WRITE
+com.sec.android.settings.permission.SOFT_RESET
+com.snake.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+com.sonyericsson.home.permission.BROADCAST_BADGE
+com.sonymobile.home.permission.PROVIDER_INSERT_BADGE
+com.teslacoilsw.launcher.permission.READ_SETTINGS
+com.tsf.shell.permission.READ_SETTINGS
+me.everything.badger.permission.BADGE_COUNT_READ
+me.everything.badger.permission.BADGE_COUNT_WRITE
+sec.android.permission.READ_MSG_PREF
+
+== DEX strings ==
+string_count: 19909
+
+== Keyword scan (billing/license/paywall) ==
+pro: 604
+  ex: 
+property_filter {
+
+  ex:  migrations are provided
+  ex:  must be a public static class to be  properly recreated from instance state.
+  ex: %s.helper.ProxyActivity$P%d%s
+  ex: %s.helper.ProxyJobService$P%d
+key: 180
+  ex: 
+Keyboard insets: Bottom: 
+  ex: A KeyboardManager was destroyed with 
+  ex: A null reply was received when sending a key event to the framework.
+  ex: A redispatched key event was consumed before reaching KeyboardManager
+  ex: Anchor keylines cannot be focal.
+token: 70
+  ex:  token
+  ex:  tokenCreationEpochInSecs
+  ex:  tokenCreationTimestamp
+  ex:  tokenExpirationTimestamp
+  ex: , authToken=
+subs: 29
+  ex: Subscribe to topic: 
+  ex: Unsubscribe from topic: 
+  ex: app_store_subscription_cancel
+  ex: app_store_subscription_convert
+  ex: app_store_subscription_renew
+serial: 17
+  ex: Can't serialize Icon created with IconCompat#createFromIcon
+  ex: Cannot serialize bundle value to SharedPreferences
+  ex: Cannot serialize bundle value to SharedPreferences. Type
+  ex: Data loss. Failed to bundle and serialize. appId
+  ex: Data loss. Failed to serialize bundle. appId
+subscribe: 16
+  ex: Subscribe to topic: 
+  ex: Unsubscribe from topic: 
+  ex: getGroupIdLevel1ForSubscriber
+  ex: getIccSerialNumberForSubscriber
+  ex: getLine1AlphaTagForSubscriber
+locked: 9
+  ex: Device unlocked: initializing all Firebase APIs for app 
+  ex: Dropping blocked event. appId
+  ex: Dropping blocked raw event. appId
+  ex: Fetching config for blocked app
+  ex: Landroid/database/sqlite/SQLiteDatabaseLockedException;
+subscription: 9
+  ex: app_store_subscription_cancel
+  ex: app_store_subscription_convert
+  ex: app_store_subscription_renew
+  ex: getAccessibleSubscriptionInfoList
+  ex: getActiveSubscriptionInfo
+iap: 8
+  ex: _iap
+  ex: _iapx
+  ex: android.app.IApplicationThread
+  ex: android.app.IApplicationThread$Stub
+  ex: com.android.internal.app.IAppOpsService$Stub
+unlock: 6
+  ex: Device unlocked: initializing all Firebase APIs for app 
+  ex: android.intent.action.USER_UNLOCKED
+  ex: getOemUnlockEnabled
+  ex: isUserUnlocked
+  ex: setOemUnlockEnabled
+purchase: 5
+  ex: Marking in-app purchase as real-time
+  ex: ecommerce_purchase
+  ex: in_app_purchase
+  ex: purchase
+  ex: purchase_refund
+acknowledge: 4
+  ex: TRANSACTION_acknowledgeStartMessage
+  ex: TRANSACTION_acknowledgeStopMessage
+  ex: acknowledgeStartMessage
+  ex: acknowledgeStopMessage
+license: 1
+  ex: LICENSE_CHECK_FAILED
+productid: 1
+  ex: ProductData{productId=
+donat: 1
+  ex: addOnAttachStateChangeListener
+in_app: 1
+  ex: in_app_purchase
+
+== URLs (from DEX strings) ==
+url_count: 10
+http://schemas.android.com/apk/res-auto
+http://schemas.android.com/apk/res/android
+https://%s/%s/%s
+https://app-measurement.com/a
+https://google.com/search?
+https://pagead2.googlesyndication.com/pagead/gen_204?id=gmob-apps
+https://plus.google.com/
+https://www.facebook.com/login.php
+https://www.google.com
+https://www.googleadservices.com/pagead/conversion/app/deeplink?id_type=adid&sdk_version=%s&rdid=%s&bundleid=%s&retry=%s
+
+== Domain-like strings (from DEX strings) ==
+  1 App measurement deactivated via resources. This method is being deprecated. Please refer to https://firebase.google.com/support/guides/disable-analytics
+  1 Cannot be invoked on Dispatchers.IO
+  1 Dispatchers.IO
+  1 Faster debug mode event logging enabled. To disable, run:
+  adb shell setprop debug.firebase.analytics.app .none.
+  1 To enable faster debug mode event logging run:
+  adb shell setprop debug.firebase.analytics.app 
+  1 android-app://com.google.android.googlequicksearchbox/https/www.google.com
+  1 android.app.Activity
+  1 android.app.ActivityClient
+  1 android.app.ActivityClient$ActivityClientControllerSingleton
+  1 android.app.ActivityManager
+  1 android.app.ActivityManagerNative
+  1 android.app.ActivityTaskManager
+  1 android.app.ActivityThread
+  1 android.app.ActivityThread$ActivityClientRecord
+  1 android.app.ActivityThread$AppBindData
+  1 android.app.ActivityThread$CreateServiceData
+  1 android.app.ActivityThread$H
+  1 android.app.ActivityThread$ProviderClientRecord
+  1 android.app.AppOpsManager
+  1 android.app.ApplicationPackageManager
+  1 android.app.ApplicationThreadNative
+  1 android.app.ContentProviderHolder
+  1 android.app.ContextImpl
+  1 android.app.IActivityManager
+  1 android.app.IActivityManager$ContentProviderHolder
+  1 android.app.IActivityTaskManager$Stub
+  1 android.app.IAlarmManager$Stub
+  1 android.app.IApplicationThread
+  1 android.app.IApplicationThread$Stub
+  1 android.app.ISearchManager$Stub
+  1 android.app.IServiceConnection
+  1 android.app.LoadedApk
+  1 android.app.LoadedApk$ReceiverDispatcher
+  1 android.app.LoadedApk$ReceiverDispatcher$InnerReceiver
+  1 android.app.LoadedApk$ServiceDispatcher
+  1 android.app.LoadedApk$ServiceDispatcher$InnerConnection
+  1 android.app.Notification
+  1 android.app.NotificationChannel
+  1 android.app.NotificationChannelGroup
+  1 android.app.NotificationManager
+  1 android.app.ProfilerInfo
+  1 android.app.Service
+  1 android.app.admin.IDevicePolicyManager$Stub
+  1 android.app.job.IJobScheduler$Stub
+  1 android.app.job.JobInfo
+  1 android.app.role.IRoleManager$Stub
+  1 android.app.servertransaction.ClientTransaction
+  1 android.app.servertransaction.LaunchActivityItem
+  1 android.app.usage.IStorageStatsManager$Stub
+  1 android.net.IConnectivityManager$Stub
+  1 android.net.IVpnManager$Stub
+  1 android.net.conn.CONNECTIVITY_CHANGE
+  1 android.net.wifi.IWifiManager$Stub
+  1 android.net.wifi.WifiInfo
+  1 android.net.wifi.WifiSsid
+  1 android.security.net.config.NetworkSecurityConfigProvider
+  1 androidx.core.app.NotificationCompat$BigPictureStyle
+  1 androidx.core.app.NotificationCompat$BigTextStyle
+  1 androidx.core.app.extra.COMPAT_TEMPLATE
+  1 app-measurement.com
+  1 com.android.internal.app.IAppOpsService$Stub
+  1 com.android.internal.net.VpnConfig
+  1 com.google.android.wearable.app
+  1 com.google.android.wearable.app.cn
+  1 com.google.android.webview.dev
+  1 com.google.app.id
+  1 debug.firebase.analytics.app
+  1 firebaseinstallations.googleapis.com
+  1 google-analytics.com
+  1 google.c.sender.id
+  1 http://schemas.android.com/apk/res-auto
+  1 http://schemas.android.com/apk/res/android
+  1 https://app-measurement.com/a
+  1 https://google.com/search?
+  1 https://pagead2.googlesyndication.com/pagead/gen_204?id=gmob-apps
+  1 https://plus.google.com/
+  1 https://www.facebook.com/login.php
+  1 https://www.google.com
+  1 https://www.googleadservices.com/pagead/conversion/app/deeplink?id_type=adid&sdk_version=%s&rdid=%s&bundleid=%s&retry=%s
+  1 kotlinx.coroutines.io.parallelism
+  1 libcore.io.Libcore
+  1 measurement.collection.enable_session_stitching_token.client.dev
+  1 measurement.gbraid_campaign.gbraid.client.dev
+  1 measurement.id.
+  1 measurement.id.client.sessions.enable_fix_background_engagement
+  1 measurement.id.dma_consent.service
+  1 measurement.id.gbraid_campaign.service
+  1 measurement.id.item_scoped_custom_parameters.service
+  1 measurement.id.lifecycle.app_in_background_parameter
+  1 measurement.id.rb.attribution.service
+  1 measurement.id.remove_app_background.client
+  1 measurement.id.sdk.collection.last_deep_link_referrer2
+  1 measurement.id.service.deferred_first_open
+  1 measurement.sgtm.client.dev
+  1 null cannot be cast to non-null type android.app.Application
+  1 null cannot be cast to non-null type java.lang.Class<androidx.fragment.app.FragmentTransitionImpl>
+  1 vivo.app.physicalfling.IPhysicalFlingManager
+  1 vivo.app.physicalfling.IPhysicalFlingManager$Stub
+  1 vivo.app.popupcamera.IPopupCameraManager
+  1 vivo.app.popupcamera.IPopupCameraManager$Stub
+  1 vivo.app.security.IVivoPermissionService
+  1 vivo.app.security.IVivoPermissionService$Stub
+  1 vivo.app.superresolution.ISuperResolutionManager
+  1 vivo.app.superresolution.ISuperResolutionManager$Stub
+  1 vivo.app.systemdefence.ISystemDefenceManager
+  1 vivo.app.systemdefence.ISystemDefenceManager$Stub
