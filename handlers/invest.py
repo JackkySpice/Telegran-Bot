@@ -46,7 +46,7 @@ async def _ensure_registered(update: Update) -> bool:
     )
     if not row:
         await update.message.reply_text(
-            "Register ka muna: press /start",
+            "Please register first: /start",
             reply_markup=MAIN_MENU,
         )
         return False
@@ -63,7 +63,7 @@ async def plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append(
         f"\nWithdrawal: Every {config.PAYOUT_DAY}, {config.WITHDRAWAL_FEE_PCT}% fee, "
         f"min {config.MIN_WITHDRAWAL}\n"
-        "1 active per plan, max 3 sabay.\n\n"
+        "1 active per plan, max 3 at a time.\n\n"
         "Tap 💰 Invest to start."
     )
     await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
@@ -152,9 +152,9 @@ async def invest_pick_currency(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     if pending:
         await update.message.reply_text(
-            "May pending deposit ka pa for this plan.\n"
-            f"Cancel: /canceldeposit {pending[0][0]}\n"
-            "Or hintayin mag-expire.",
+            "You still have a pending deposit for this plan.\n"
+            f"Cancel it: /canceldeposit {pending[0][0]}\n"
+            "Or wait for it to expire.",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -279,7 +279,7 @@ async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         dep_id = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("ID dapat number.", reply_markup=MAIN_MENU)
+        await update.message.reply_text("ID must be a number.", reply_markup=MAIN_MENU)
         return
 
     db = await get_db()
@@ -293,12 +293,12 @@ async def canceldeposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if row[0][1] != user_id:
-        await update.message.reply_text("Hindi sayo yang deposit.", reply_markup=MAIN_MENU)
+        await update.message.reply_text("That deposit doesn't belong to you.", reply_markup=MAIN_MENU)
         return
 
     if row[0][2] != "pending":
         await update.message.reply_text(
-            f"Deposit status: {row[0][2]}. Hindi na pwede i-cancel.",
+            f"Deposit status: {row[0][2]}. It can no longer be cancelled.",
             reply_markup=MAIN_MENU,
         )
         return

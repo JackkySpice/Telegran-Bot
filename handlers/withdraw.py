@@ -40,12 +40,12 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT balance_trx, balance_usdt FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Register ka muna: /start", reply_markup=MAIN_MENU)
+        await update.message.reply_text("Please register first: /start", reply_markup=MAIN_MENU)
         return
 
     trx, usdt = row[0]
     await update.message.reply_text(
-        f"Balance mo:\n"
+        f"Your Balance:\n"
         f"TRX: {trx:.4f}\n"
         f"USDT: {usdt:.4f}\n\n"
         f"Min withdrawal: {config.MIN_WITHDRAWAL}\n"
@@ -64,18 +64,18 @@ async def mywallet_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "SELECT wallet_address FROM users WHERE user_id = ?", (user_id,)
     )
     if not row:
-        await update.message.reply_text("Register ka muna: /start", reply_markup=MAIN_MENU)
+        await update.message.reply_text("Please register first: /start", reply_markup=MAIN_MENU)
         return
 
     addr = row[0][0]
     if addr:
         await update.message.reply_text(
-            f"Wallet mo: {addr}\n\nTap Set Wallet to change it.",
+            f"Your wallet: {addr}\n\nTap Set Wallet to change it.",
             reply_markup=WALLET_MENU,
         )
     else:
         await update.message.reply_text(
-            "Wala ka pang wallet. Tap Set Wallet to add one.",
+            "You don't have a wallet set yet. Tap Set Wallet to add one.",
             reply_markup=WALLET_MENU,
         )
 
@@ -125,7 +125,7 @@ async def withdraw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     now = datetime.now(timezone.utc)
     if now.strftime("%A") != config.PAYOUT_DAY:
         await update.message.reply_text(
-            f"Withdrawal is every {config.PAYOUT_DAY} lang. Balik ka sa {config.PAYOUT_DAY}!",
+            f"Withdrawals are only available on {config.PAYOUT_DAY}. Come back then!",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -134,12 +134,12 @@ async def withdraw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "SELECT wallet_address FROM users WHERE user_id = ?", (user_id,)
     )
     if not user_row:
-        await update.message.reply_text("Register ka muna: /start", reply_markup=MAIN_MENU)
+        await update.message.reply_text("Please register first: /start", reply_markup=MAIN_MENU)
         return ConversationHandler.END
 
     if not user_row[0][0]:
         await update.message.reply_text(
-            "Set wallet address mo muna. Tap 👛 Wallet first.",
+            "Please set your wallet address first. Tap 👛 Wallet.",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -163,7 +163,7 @@ async def withdraw_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         days_left = (nearest - now).days
         await update.message.reply_text(
-            f"Lock period pa. Unlock in {days_left} day(s).",
+            f"Still in lock period. Unlocks in {days_left} day(s).",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END
@@ -224,7 +224,7 @@ async def withdraw_pick_currency(update: Update, context: ContextTypes.DEFAULT_T
         )
         bal = current[0][0] if current else 0
         await update.message.reply_text(
-            f"Hindi enough. Balance mo: {bal:.4f} {currency}.",
+            f"Insufficient balance. Your balance: {bal:.4f} {currency}.",
             reply_markup=MAIN_MENU,
         )
         return ConversationHandler.END

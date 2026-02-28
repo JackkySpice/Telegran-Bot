@@ -47,7 +47,7 @@ async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     lines.append(f"\nTotal: {stats['grand_total']:.4f}")
-    lines.append("Optional lang mag-invite, hindi required para mag-withdraw.")
+    lines.append("Inviting others is optional, not required to withdraw.")
 
     await update.message.reply_text("\n".join(lines), reply_markup=MAIN_MENU)
 

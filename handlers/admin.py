@@ -77,7 +77,7 @@ async def trigger_daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Already ran today. Use /dailyrun force to override."
         )
     elif count == 0 and await are_payouts_paused():
-        await update.message.reply_text("Payouts paused. /resumepayouts muna.")
+        await update.message.reply_text("Payouts are paused. Run /resumepayouts first.")
     else:
         await update.message.reply_text(f"Done! {count} investments credited. ✅")
 
@@ -86,7 +86,7 @@ async def pause_payouts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_admin(update.effective_user.id):
         return
     await set_setting("payouts_paused", "1")
-    await update.message.reply_text("Payouts paused. Walang crediting hanggang i-resume.")
+    await update.message.reply_text("Payouts paused. No earnings will be credited until resumed.")
 
 
 async def resume_payouts(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -108,7 +108,7 @@ async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         dep_id = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("ID dapat number.")
+        await update.message.reply_text("ID must be a number.")
         return
 
     db = await get_db()
@@ -122,7 +122,7 @@ async def confirm_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     dep = row[0]
     if dep[5] != "pending":
-        await update.message.reply_text(f"Deposit status: {dep[5]}. Hindi pending.")
+        await update.message.reply_text(f"Deposit status: {dep[5]}. Not pending.")
         return
 
     await db.execute(
@@ -199,7 +199,7 @@ async def approve_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         wd_id = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("ID dapat number.")
+        await update.message.reply_text("ID must be a number.")
         return
 
     db = await get_db()
@@ -212,7 +212,7 @@ async def approve_withdrawal(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     if row[0][7] != "pending":
-        await update.message.reply_text(f"Status: {row[0][7]}. Hindi pending.")
+        await update.message.reply_text(f"Status: {row[0][7]}. Not pending.")
         return
 
     await db.execute(

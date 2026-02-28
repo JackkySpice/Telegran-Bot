@@ -261,10 +261,10 @@ async def _notify_user(
             )
         elif status == "underpaid":
             text = (
-                f"Kulang ang payment mo.\n"
+                f"Your payment was short.\n"
                 f"Expected: {amount} {currency}\n"
                 f"Received: {received} {currency}\n\n"
-                "Contact admin para ma-resolve."
+                "Contact admin to resolve."
             )
         else:
             text = (
